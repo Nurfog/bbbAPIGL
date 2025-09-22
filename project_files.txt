@@ -14,8 +14,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ISalaService, SalaService>();
 builder.Services.AddScoped<ISalaRepository, SalaRepository>();
 builder.Services.AddScoped<ICursoRepository, MySqlCursoRepository>();
-
 builder.Services.AddTransient<IEmailService, GoogleCalendarService>();
+builder.Services.AddScoped<IS3Service, S3Service>();
+builder.Services.AddScoped<ICursoRepository, MySqlCursoRepository>();
 
 // 2. Construir la aplicación
 var app = builder.Build();
@@ -62,11 +63,15 @@ public class MySqlCursoRepository : ICursoRepository
         await using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        // !!! IMPORTANTE: Adapta esta consulta a tu tabla y columnas de alumnos !!!
-        string sql = "SELECT email FROM alumnos WHERE id_curso = @IdCurso";
+    
+        string sql = "SELECT alu.Email " +
+                        "FROM sige_sam_v3.detallecontrato as detcon inner join " +
+                        "alumnos as alu on detcon.idAlumno = alu.idAlumno " +
+                        "where detcon.Activo = 1 and " +
+                        "idCursoAbierto = "+ idCurso;
         
         await using var command = new MySqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@IdCurso", idCurso);
+        command.Parameters.AddWithValue("@idCursoAbierto", idCurso);
 
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
@@ -255,7 +260,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             return rowsAffected > 0;
         }
         catch (Exception ex)
-        {            
+        {
             await transaction.RollbackAsync();
             Console.WriteLine($"Error al eliminar la sala: {ex.Message}");
             throw;
@@ -265,7 +270,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
-        
+
         // Obtenemos solo los campos que necesitamos para la invitación
         string sql = "SELECT name, meeting_id, friendly_id FROM rooms WHERE id = @RoomId";
         await using var command = new NpgsqlCommand(sql, conn);
@@ -287,6 +292,34 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
         }
         return null;
     }
+    public async Task<List<RecordingInfo>> ObtenerTodosLosRecordIdsPorRoomIdAsync(Guid roomId)
+    {
+        var recordings = new List<RecordingInfo>();
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        
+        // Quitamos el LIMIT 1 y seleccionamos también created_at
+        const string sql = @"
+            SELECT record_id, created_at 
+            FROM recordings 
+            WHERE room_id = @RoomId 
+            ORDER BY created_at DESC";
+        
+        await using var command = new NpgsqlCommand(sql, conn);
+        command.Parameters.AddWithValue("RoomId", roomId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            recordings.Add(new RecordingInfo
+            {
+                RecordId = reader.GetString(0),
+                CreatedAt = reader.GetDateTime(1)
+            });
+        }
+        
+        return recordings;
+    }
 }
 --- ./Repositories/ISalaRepository.cs ---
 using System;
@@ -300,7 +333,10 @@ public interface ISalaRepository
     Task<Guid?> GuardarSalaAsync(Sala sala, string userEmail);
     Task<bool> EliminarSalaAsync(Guid roomId);
     Task<Sala?> ObtenerSalaPorIdAsync(Guid roomId);
+    Task<List<RecordingInfo>> ObtenerTodosLosRecordIdsPorRoomIdAsync(Guid roomId);
 }
+--- ./bin/Release/net9.0/linux-x64/appsettings.Production.json ---
+{}
 --- ./bin/Release/net9.0/linux-x64/bbbAPIGL.runtimeconfig.json ---
 {
   "runtimeOptions": {
@@ -344,6 +380,7 @@ public interface ISalaRepository
     ".NETCoreApp,Version=v9.0/linux-x64": {
       "bbbAPIGL/1.0.0": {
         "dependencies": {
+          "AWSSDK.S3": "4.0.7",
           "Google.Apis.Auth": "1.70.0",
           "Google.Apis.Calendar.v3": "1.69.0.3746",
           "Google.Apis.Gmail.v1": "1.70.0.3833",
@@ -355,6 +392,25 @@ public interface ISalaRepository
         },
         "runtime": {
           "bbbAPIGL.dll": {}
+        }
+      },
+      "AWSSDK.Core/4.0.0.26": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.26"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.0.26"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.7.0"
+          }
         }
       },
       "BouncyCastle.Cryptography/2.5.1": {
@@ -558,6 +614,20 @@ public interface ISalaRepository
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "AWSSDK.Core/4.0.0.26": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sP+yvQm/caU3MNAmk/AeI9t/SN2AGoXw84UK7KgjHvjyRxEzgb2bEpiClNGfNqtfI+9pGBSG2OwMOvapajoBxQ==",
+      "path": "awssdk.core/4.0.0.26",
+      "hashPath": "awssdk.core.4.0.0.26.nupkg.sha512"
+    },
+    "AWSSDK.S3/4.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5+DpOmodS7IBxWamMxv2VaK+kkTHv/rQPakop0b33ymd/zX9XQU/39sRJdaxYgJ2igMmVEE74+i5PXy3JowcgA==",
+      "path": "awssdk.s3/4.0.7",
+      "hashPath": "awssdk.s3.4.0.7.nupkg.sha512"
     },
     "BouncyCastle.Cryptography/2.5.1": {
       "type": "package",
@@ -751,9 +821,15 @@ public interface ISalaRepository
   },
   "GoogleCalendarSettings": {
     "CredentialsFile": "google-credentials.json",
-    "UserToImpersonate": "norteamericanoonline@norteamericano.cl"
+    "UserToImpersonate": "jallende@norteamericano.cl"
+  },
+  "S3Settings": {
+    "BuckerName": "bbbgl",
+    "Region": "us-east-2"
   }
 }
+--- ./bin/Debug/net9.0/appsettings.Production.json ---
+{}
 --- ./bin/Debug/net9.0/bbbAPIGL.runtimeconfig.json ---
 {
   "runtimeOptions": {
@@ -784,6 +860,8 @@ public interface ISalaRepository
   }
 }
 
+--- ./bin/Debug/net9.0/publish/appsettings.Production.json ---
+{}
 --- ./bin/Debug/net9.0/publish/bbbAPIGL.runtimeconfig.json ---
 {
   "runtimeOptions": {
@@ -827,6 +905,7 @@ public interface ISalaRepository
     ".NETCoreApp,Version=v9.0/linux-x64": {
       "bbbAPIGL/1.0.0": {
         "dependencies": {
+          "AWSSDK.S3": "4.0.7",
           "Google.Apis.Auth": "1.70.0",
           "Google.Apis.Calendar.v3": "1.69.0.3746",
           "Google.Apis.Gmail.v1": "1.70.0.3833",
@@ -838,6 +917,25 @@ public interface ISalaRepository
         },
         "runtime": {
           "bbbAPIGL.dll": {}
+        }
+      },
+      "AWSSDK.Core/4.0.0.26": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.26"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.0.26"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.7.0"
+          }
         }
       },
       "BouncyCastle.Cryptography/2.5.1": {
@@ -1042,6 +1140,20 @@ public interface ISalaRepository
       "serviceable": false,
       "sha512": ""
     },
+    "AWSSDK.Core/4.0.0.26": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sP+yvQm/caU3MNAmk/AeI9t/SN2AGoXw84UK7KgjHvjyRxEzgb2bEpiClNGfNqtfI+9pGBSG2OwMOvapajoBxQ==",
+      "path": "awssdk.core/4.0.0.26",
+      "hashPath": "awssdk.core.4.0.0.26.nupkg.sha512"
+    },
+    "AWSSDK.S3/4.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5+DpOmodS7IBxWamMxv2VaK+kkTHv/rQPakop0b33ymd/zX9XQU/39sRJdaxYgJ2igMmVEE74+i5PXy3JowcgA==",
+      "path": "awssdk.s3/4.0.7",
+      "hashPath": "awssdk.s3.4.0.7.nupkg.sha512"
+    },
     "BouncyCastle.Cryptography/2.5.1": {
       "type": "package",
       "serviceable": true,
@@ -1234,7 +1346,11 @@ public interface ISalaRepository
   },
   "GoogleCalendarSettings": {
     "CredentialsFile": "google-credentials.json",
-    "UserToImpersonate": "norteamericanoonline@norteamericano.cl"
+    "UserToImpersonate": "jallende@norteamericano.cl"
+  },
+  "S3Settings": {
+    "BuckerName": "bbbgl",
+    "Region": "us-east-2"
   }
 }
 --- ./bin/Debug/net9.0/bbbAPIGL.deps.json ---
@@ -1248,6 +1364,7 @@ public interface ISalaRepository
     ".NETCoreApp,Version=v9.0": {
       "bbbAPIGL/1.0.0": {
         "dependencies": {
+          "AWSSDK.S3": "4.0.7",
           "Google.Apis.Auth": "1.70.0",
           "Google.Apis.Calendar.v3": "1.69.0.3746",
           "Google.Apis.Gmail.v1": "1.70.0.3833",
@@ -1259,6 +1376,25 @@ public interface ISalaRepository
         },
         "runtime": {
           "bbbAPIGL.dll": {}
+        }
+      },
+      "AWSSDK.Core/4.0.0.26": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.26"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.0.26"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.7.0"
+          }
         }
       },
       "BouncyCastle.Cryptography/2.5.1": {
@@ -1471,6 +1607,20 @@ public interface ISalaRepository
       "serviceable": false,
       "sha512": ""
     },
+    "AWSSDK.Core/4.0.0.26": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sP+yvQm/caU3MNAmk/AeI9t/SN2AGoXw84UK7KgjHvjyRxEzgb2bEpiClNGfNqtfI+9pGBSG2OwMOvapajoBxQ==",
+      "path": "awssdk.core/4.0.0.26",
+      "hashPath": "awssdk.core.4.0.0.26.nupkg.sha512"
+    },
+    "AWSSDK.S3/4.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5+DpOmodS7IBxWamMxv2VaK+kkTHv/rQPakop0b33ymd/zX9XQU/39sRJdaxYgJ2igMmVEE74+i5PXy3JowcgA==",
+      "path": "awssdk.s3/4.0.7",
+      "hashPath": "awssdk.s3.4.0.7.nupkg.sha512"
+    },
     "BouncyCastle.Cryptography/2.5.1": {
       "type": "package",
       "serviceable": true,
@@ -1663,9 +1813,15 @@ public interface ISalaRepository
   },
   "GoogleCalendarSettings": {
     "CredentialsFile": "google-credentials.json",
-    "UserToImpersonate": "norteamericanoonline@norteamericano.cl"
+    "UserToImpersonate": "jallende@norteamericano.cl"
+  },
+  "S3Settings": {
+    "BuckerName": "bbbgl",
+    "Region": "us-east-2"
   }
 }
+--- ./appsettings.Production.json ---
+{}
 --- ./Properties/launchSettings.json ---
 ﻿{
   "$schema": "https://json.schemastore.org/launchsettings.json",
@@ -1750,6 +1906,10 @@ public interface ISalaRepository
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "AWSSDK.S3": {
+              "target": "Package",
+              "version": "[4.0.7, )"
+            },
             "Google.Apis.Auth": {
               "target": "Package",
               "version": "[1.70.0, )"
@@ -1804,6 +1964,11 @@ public interface ISalaRepository
           },
           "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.303/PortableRuntimeIdentifierGraph.json"
         }
+      },
+      "runtimes": {
+        "linux-x64": {
+          "#import": []
+        }
       }
     }
   }
@@ -1813,6 +1978,35 @@ public interface ISalaRepository
   "version": 3,
   "targets": {
     "net9.0": {
+      "AWSSDK.Core/4.0.0.26": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7": {
+        "type": "package",
+        "dependencies": {
+          "AWSSDK.Core": "[4.0.0.26, 5.0.0)"
+        },
+        "compile": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "BouncyCastle.Cryptography/2.5.1": {
         "type": "package",
         "compile": {
@@ -2180,9 +2374,450 @@ public interface ISalaRepository
           }
         }
       }
+    },
+    "net9.0/linux-x64": {
+      "AWSSDK.Core/4.0.0.26": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7": {
+        "type": "package",
+        "dependencies": {
+          "AWSSDK.Core": "[4.0.0.26, 5.0.0)"
+        },
+        "compile": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "BouncyCastle.Cryptography/2.5.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Google.Apis/1.70.0": {
+        "type": "package",
+        "dependencies": {
+          "Google.Apis.Core": "1.70.0"
+        },
+        "compile": {
+          "lib/net6.0/Google.Apis.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Google.Apis.Auth/1.70.0": {
+        "type": "package",
+        "dependencies": {
+          "Google.Apis": "1.70.0",
+          "Google.Apis.Core": "1.70.0",
+          "System.Management": "7.0.2"
+        },
+        "compile": {
+          "lib/net6.0/Google.Apis.Auth.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Auth.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Google.Apis.Calendar.v3/1.69.0.3746": {
+        "type": "package",
+        "dependencies": {
+          "Google.Apis": "1.69.0",
+          "Google.Apis.Auth": "1.69.0"
+        },
+        "compile": {
+          "lib/net6.0/Google.Apis.Calendar.v3.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Calendar.v3.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Google.Apis.Core/1.70.0": {
+        "type": "package",
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3"
+        },
+        "compile": {
+          "lib/net6.0/Google.Apis.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Google.Apis.Gmail.v1/1.70.0.3833": {
+        "type": "package",
+        "dependencies": {
+          "Google.Apis": "1.70.0",
+          "Google.Apis.Auth": "1.70.0"
+        },
+        "compile": {
+          "lib/net6.0/Google.Apis.Gmail.v1.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Gmail.v1.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Microsoft.AspNetCore.OpenApi/9.0.7": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.17"
+        },
+        "compile": {
+          "lib/net9.0/Microsoft.AspNetCore.OpenApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/Microsoft.AspNetCore.OpenApi.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Microsoft.Extensions.ApiDescription.Server/9.0.0": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.Extensions.ApiDescription.Server.props": {},
+          "build/Microsoft.Extensions.ApiDescription.Server.targets": {}
+        },
+        "buildMultiTargeting": {
+          "buildMultiTargeting/Microsoft.Extensions.ApiDescription.Server.props": {},
+          "buildMultiTargeting/Microsoft.Extensions.ApiDescription.Server.targets": {}
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net6.0/_._": {}
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions/8.0.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2"
+        },
+        "compile": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net6.0/Microsoft.Extensions.Logging.Abstractions.targets": {}
+        }
+      },
+      "Microsoft.OpenApi/1.6.25": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/Microsoft.OpenApi.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.OpenApi.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "MimeKit/4.13.0": {
+        "type": "package",
+        "dependencies": {
+          "BouncyCastle.Cryptography": "2.5.1",
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        },
+        "compile": {
+          "lib/net8.0/MimeKit.dll": {
+            "related": ".dll.config;.pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/MimeKit.dll": {
+            "related": ".dll.config;.pdb;.xml"
+          }
+        }
+      },
+      "MySqlConnector/2.4.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        },
+        "compile": {
+          "lib/net9.0/MySqlConnector.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/MySqlConnector.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Newtonsoft.Json/13.0.3": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Npgsql/9.0.3": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        },
+        "compile": {
+          "lib/net8.0/Npgsql.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/Npgsql.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore/9.0.4": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.ApiDescription.Server": "9.0.0",
+          "Swashbuckle.AspNetCore.Swagger": "9.0.4",
+          "Swashbuckle.AspNetCore.SwaggerGen": "9.0.4",
+          "Swashbuckle.AspNetCore.SwaggerUI": "9.0.4"
+        },
+        "build": {
+          "build/Swashbuckle.AspNetCore.props": {}
+        },
+        "buildMultiTargeting": {
+          "buildMultiTargeting/Swashbuckle.AspNetCore.props": {}
+        }
+      },
+      "Swashbuckle.AspNetCore.Swagger/9.0.4": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.25"
+        },
+        "compile": {
+          "lib/net9.0/Swashbuckle.AspNetCore.Swagger.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/Swashbuckle.AspNetCore.Swagger.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "Swashbuckle.AspNetCore.SwaggerGen/9.0.4": {
+        "type": "package",
+        "dependencies": {
+          "Swashbuckle.AspNetCore.Swagger": "9.0.4"
+        },
+        "compile": {
+          "lib/net9.0/Swashbuckle.AspNetCore.SwaggerGen.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/Swashbuckle.AspNetCore.SwaggerGen.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerUI/9.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/net9.0/Swashbuckle.AspNetCore.SwaggerUI.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/Swashbuckle.AspNetCore.SwaggerUI.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "System.CodeDom/7.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net7.0/System.CodeDom.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net7.0/System.CodeDom.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net6.0/_._": {}
+        }
+      },
+      "System.Management/7.0.2": {
+        "type": "package",
+        "dependencies": {
+          "System.CodeDom": "7.0.0"
+        },
+        "compile": {
+          "lib/net7.0/System.Management.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net7.0/System.Management.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net6.0/_._": {}
+        }
+      },
+      "System.Security.Cryptography.Pkcs/8.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Security.Cryptography.Pkcs.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Security.Cryptography.Pkcs.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net6.0/_._": {}
+        }
+      }
     }
   },
   "libraries": {
+    "AWSSDK.Core/4.0.0.26": {
+      "sha512": "sP+yvQm/caU3MNAmk/AeI9t/SN2AGoXw84UK7KgjHvjyRxEzgb2bEpiClNGfNqtfI+9pGBSG2OwMOvapajoBxQ==",
+      "type": "package",
+      "path": "awssdk.core/4.0.0.26",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "awssdk.core.4.0.0.26.nupkg.sha512",
+        "awssdk.core.nuspec",
+        "images/AWSLogo.png",
+        "lib/net472/AWSSDK.Core.dll",
+        "lib/net472/AWSSDK.Core.pdb",
+        "lib/net472/AWSSDK.Core.xml",
+        "lib/net8.0/AWSSDK.Core.dll",
+        "lib/net8.0/AWSSDK.Core.pdb",
+        "lib/net8.0/AWSSDK.Core.xml",
+        "lib/netcoreapp3.1/AWSSDK.Core.dll",
+        "lib/netcoreapp3.1/AWSSDK.Core.pdb",
+        "lib/netcoreapp3.1/AWSSDK.Core.xml",
+        "lib/netstandard2.0/AWSSDK.Core.dll",
+        "lib/netstandard2.0/AWSSDK.Core.pdb",
+        "lib/netstandard2.0/AWSSDK.Core.xml",
+        "tools/account-management.ps1"
+      ]
+    },
+    "AWSSDK.S3/4.0.7": {
+      "sha512": "5+DpOmodS7IBxWamMxv2VaK+kkTHv/rQPakop0b33ymd/zX9XQU/39sRJdaxYgJ2igMmVEE74+i5PXy3JowcgA==",
+      "type": "package",
+      "path": "awssdk.s3/4.0.7",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "analyzers/dotnet/cs/AWSSDK.S3.CodeAnalysis.dll",
+        "analyzers/dotnet/cs/SharedAnalysisCode.dll",
+        "awssdk.s3.4.0.7.nupkg.sha512",
+        "awssdk.s3.nuspec",
+        "images/AWSLogo.png",
+        "lib/net472/AWSSDK.S3.dll",
+        "lib/net472/AWSSDK.S3.pdb",
+        "lib/net472/AWSSDK.S3.xml",
+        "lib/net8.0/AWSSDK.S3.dll",
+        "lib/net8.0/AWSSDK.S3.pdb",
+        "lib/net8.0/AWSSDK.S3.xml",
+        "lib/netcoreapp3.1/AWSSDK.S3.dll",
+        "lib/netcoreapp3.1/AWSSDK.S3.pdb",
+        "lib/netcoreapp3.1/AWSSDK.S3.xml",
+        "lib/netstandard2.0/AWSSDK.S3.dll",
+        "lib/netstandard2.0/AWSSDK.S3.pdb",
+        "lib/netstandard2.0/AWSSDK.S3.xml",
+        "tools/install.ps1",
+        "tools/uninstall.ps1"
+      ]
+    },
     "BouncyCastle.Cryptography/2.5.1": {
       "sha512": "zy8TMeTP+1FH2NrLaNZtdRbBdq7u5MI+NFZQOBSM69u5RFkciinwzV2eveY6Kjf5MzgsYvvl6kTStsj3JrXqkg==",
       "type": "package",
@@ -2980,6 +3615,7 @@ public interface ISalaRepository
   },
   "projectFileDependencyGroups": {
     "net9.0": [
+      "AWSSDK.S3 >= 4.0.7",
       "Google.Apis.Auth >= 1.70.0",
       "Google.Apis.Calendar.v3 >= 1.69.0.3746",
       "Google.Apis.Gmail.v1 >= 1.70.0.3833",
@@ -3033,6 +3669,10 @@ public interface ISalaRepository
       "net9.0": {
         "targetAlias": "net9.0",
         "dependencies": {
+          "AWSSDK.S3": {
+            "target": "Package",
+            "version": "[4.0.7, )"
+          },
           "Google.Apis.Auth": {
             "target": "Package",
             "version": "[1.70.0, )"
@@ -3087,15 +3727,22 @@ public interface ISalaRepository
         },
         "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.303/PortableRuntimeIdentifierGraph.json"
       }
+    },
+    "runtimes": {
+      "linux-x64": {
+        "#import": []
+      }
     }
   }
 }
 --- ./obj/Release/net9.0/linux-x64/rpswa.dswa.cache.json ---
-{"GlobalPropertiesHash":"/Qcv8XfXiDa1xn5Xmwnt79zyv2kR3135mZCx0FE/rfA=","FingerprintPatternsHash":"gq3WsqcKBUGTSNle7RKKyXRIwh7M8ccEqOqYvIzoM04=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","CwXWY5wkP/5cwT30MUrciDEAbQhRc5TKuTpBfFs\u002BGpU=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM="],"CachedAssets":{},"CachedCopyCandidates":{}}
+{"GlobalPropertiesHash":"/Qcv8XfXiDa1xn5Xmwnt79zyv2kR3135mZCx0FE/rfA=","FingerprintPatternsHash":"gq3WsqcKBUGTSNle7RKKyXRIwh7M8ccEqOqYvIzoM04=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","1iGeozBbjm7U3S6OeGQA8GyTckrRJa0OG3ucmKnqUOE=","3HKJ\u002BCbnscYfoS37PIOP5tomIECJQpGCzoXN4g7sWL4=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM="],"CachedAssets":{},"CachedCopyCandidates":{}}
 --- ./obj/Release/net9.0/linux-x64/staticwebassets.publish.json ---
 {"Version":1,"Hash":"30v/Vy6eIU+DveWUlR3u1bGrCJLAiUnuaIKD274Qxm0=","Source":"bbbAPIGL","BasePath":"_content/bbbAPIGL","Mode":"Default","ManifestType":"Publish","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}
 --- ./obj/Release/net9.0/linux-x64/staticwebassets.build.endpoints.json ---
 {"Version":1,"ManifestType":"Build","Endpoints":[]}
+--- ./obj/Release/net9.0/linux-x64/bbbAPIGL.sourcelink.json ---
+{"documents":{"/home/juan/bbbAPIGL/*":"https://raw.githubusercontent.com/Nurfog/bbbAPIGL/688e3133e2b448749df780c89db6d7f3e3da56a6/*"}}
 --- ./obj/Release/net9.0/linux-x64/bbbAPIGL.AssemblyInfo.cs ---
 //------------------------------------------------------------------------------
 // <auto-generated>
@@ -3112,7 +3759,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+688e3133e2b448749df780c89db6d7f3e3da56a6")]
 [assembly: System.Reflection.AssemblyProductAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -3121,7 +3768,7 @@ using System.Reflection;
 
 
 --- ./obj/Release/net9.0/linux-x64/rjsmrazor.dswa.cache.json ---
-{"GlobalPropertiesHash":"0EjS55AK3nNm+E2gI7Vw9FjBeMbBtsDFHlsoUTiRTWw=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","CwXWY5wkP/5cwT30MUrciDEAbQhRc5TKuTpBfFs\u002BGpU=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","ASqD7TNNb8WK2kyr3QZ8KCwHY6Z3XJ7fAoZkfIUtWvA="],"CachedAssets":{},"CachedCopyCandidates":{}}
+{"GlobalPropertiesHash":"0EjS55AK3nNm+E2gI7Vw9FjBeMbBtsDFHlsoUTiRTWw=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","1iGeozBbjm7U3S6OeGQA8GyTckrRJa0OG3ucmKnqUOE=","3HKJ\u002BCbnscYfoS37PIOP5tomIECJQpGCzoXN4g7sWL4=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","hptZyZ1egk/7Sy9sLRca3LAFP\u002BpRBk4ZMPFQkhefddg=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","UsjBwkCTdt4w7AIkq\u002BSeIAuElTfR1jFnxwD1EdZrTm0="],"CachedAssets":{},"CachedCopyCandidates":{}}
 --- ./obj/Release/net9.0/linux-x64/bbbAPIGL.MvcApplicationPartsAssemblyInfo.cs ---
 //------------------------------------------------------------------------------
 // <auto-generated>
@@ -3171,11 +3818,13 @@ using System.Reflection;
 [assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v9.0", FrameworkDisplayName = ".NET 9.0")]
 
 --- ./obj/Release/net9.0/linux-x64/rjsmcshtml.dswa.cache.json ---
-{"GlobalPropertiesHash":"VhTxHYyiU3gI9zTnlooTF8fRKFqP/Jqi7J6smzQs0A8=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","CwXWY5wkP/5cwT30MUrciDEAbQhRc5TKuTpBfFs\u002BGpU=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","ASqD7TNNb8WK2kyr3QZ8KCwHY6Z3XJ7fAoZkfIUtWvA="],"CachedAssets":{},"CachedCopyCandidates":{}}
+{"GlobalPropertiesHash":"VhTxHYyiU3gI9zTnlooTF8fRKFqP/Jqi7J6smzQs0A8=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","1iGeozBbjm7U3S6OeGQA8GyTckrRJa0OG3ucmKnqUOE=","3HKJ\u002BCbnscYfoS37PIOP5tomIECJQpGCzoXN4g7sWL4=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","hptZyZ1egk/7Sy9sLRca3LAFP\u002BpRBk4ZMPFQkhefddg=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","UsjBwkCTdt4w7AIkq\u002BSeIAuElTfR1jFnxwD1EdZrTm0="],"CachedAssets":{},"CachedCopyCandidates":{}}
 --- ./obj/Debug/net9.0/rpswa.dswa.cache.json ---
-{"GlobalPropertiesHash":"/Qcv8XfXiDa1xn5Xmwnt79zyv2kR3135mZCx0FE/rfA=","FingerprintPatternsHash":"gq3WsqcKBUGTSNle7RKKyXRIwh7M8ccEqOqYvIzoM04=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","CwXWY5wkP/5cwT30MUrciDEAbQhRc5TKuTpBfFs\u002BGpU=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","cGP7MJpz22qFMLQv6I3ax/fahKABEPhcW8m4A7KdX9w=","JzvYDyXV0RrLbVOYGNKdw1f9oBfQIua4s6nkZ8Rmj9k=","lLhPhJYcvGlLrHUOKy1tsqpIsRaksPh9Y1KAzMXUOdI=","7uIwrfuqCb8hYXrsekoqIMe/2NgxyDjAqyJsAeeCBTU=","TO7wJmtX/jx7OLUFheSvqG9T7Xy43Jq25JLaiSK6204=","R46snh6NIbcL8lD53U\u002BkvEq5SyxYV4UqHn9nE/dkmlY="],"CachedAssets":{},"CachedCopyCandidates":{}}
+{"GlobalPropertiesHash":"/Qcv8XfXiDa1xn5Xmwnt79zyv2kR3135mZCx0FE/rfA=","FingerprintPatternsHash":"gq3WsqcKBUGTSNle7RKKyXRIwh7M8ccEqOqYvIzoM04=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","1iGeozBbjm7U3S6OeGQA8GyTckrRJa0OG3ucmKnqUOE=","3HKJ\u002BCbnscYfoS37PIOP5tomIECJQpGCzoXN4g7sWL4=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","cGP7MJpz22qFMLQv6I3ax/fahKABEPhcW8m4A7KdX9w=","7Qui4ke7IUl0N/Qo\u002Bnsf2IiFGOxH7C/aUNhxpDmbxTo=","vRx3aaj8f\u002ByfskT\u002B7cztYC\u002BC2mck\u002Brkr92nspbWjyCQ=","L3q4TN/Imde9mKal1Ufmi9Go44AJjZLV4gsMDTbOpAU=","djZa3Aw\u002BJOy4PR32\u002By7CWAgaEYRz/Gi1k/HpnvHmdhg=","TO7wJmtX/jx7OLUFheSvqG9T7Xy43Jq25JLaiSK6204=","R46snh6NIbcL8lD53U\u002BkvEq5SyxYV4UqHn9nE/dkmlY="],"CachedAssets":{},"CachedCopyCandidates":{}}
 --- ./obj/Debug/net9.0/staticwebassets.build.endpoints.json ---
 {"Version":1,"ManifestType":"Build","Endpoints":[]}
+--- ./obj/Debug/net9.0/bbbAPIGL.sourcelink.json ---
+{"documents":{"/home/juan/bbbAPIGL/*":"https://raw.githubusercontent.com/Nurfog/bbbAPIGL/688e3133e2b448749df780c89db6d7f3e3da56a6/*"}}
 --- ./obj/Debug/net9.0/bbbAPIGL.AssemblyInfo.cs ---
 //------------------------------------------------------------------------------
 // <auto-generated>
@@ -3192,7 +3841,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+688e3133e2b448749df780c89db6d7f3e3da56a6")]
 [assembly: System.Reflection.AssemblyProductAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -3201,7 +3850,7 @@ using System.Reflection;
 
 
 --- ./obj/Debug/net9.0/rjsmrazor.dswa.cache.json ---
-{"GlobalPropertiesHash":"0EjS55AK3nNm+E2gI7Vw9FjBeMbBtsDFHlsoUTiRTWw=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","CwXWY5wkP/5cwT30MUrciDEAbQhRc5TKuTpBfFs\u002BGpU=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","cGP7MJpz22qFMLQv6I3ax/fahKABEPhcW8m4A7KdX9w=","JzvYDyXV0RrLbVOYGNKdw1f9oBfQIua4s6nkZ8Rmj9k=","lLhPhJYcvGlLrHUOKy1tsqpIsRaksPh9Y1KAzMXUOdI=","7uIwrfuqCb8hYXrsekoqIMe/2NgxyDjAqyJsAeeCBTU=","TO7wJmtX/jx7OLUFheSvqG9T7Xy43Jq25JLaiSK6204=","R46snh6NIbcL8lD53U\u002BkvEq5SyxYV4UqHn9nE/dkmlY=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","Uf\u002BQPBIOlOy5N7yYpHNgLbO1SwxUjGhUPeujuQLnx7A=","fQ7us3RpcFPlEx/ZsPkAddTH\u002BDoM00d0LoiodcqbSyA=","lJRSu1QmfxOg\u002BSGUpSNbT4gG3LtFWCdPtbzPLBL7CAw=","D2cceMDFosHesWZD5OSgqulXoGBpaHHe5hkK0SEsFzs=","ccxh3bjSLVDvwHcWktSmLTBJR7NkNTbDu8adKchsQoU=","KEtR719GVpqeIaL3NCoZRBc5jZmCoHFHAYuaILuks8M=","ywh/A73hzfgwF1/3dO5VUtZZhxQxrZpOLMLhoelIwX0=","X7tTRe9qmzSSwvhdO1r\u002B/p5NzE9zLDX\u002Bez32gZVDrP4=","Xgway0wNF1VUzqzzZAcW1itjnb7YSfj7Gw9G7XLQ5hk=","NbYd0ZPM6sSezsQddb46Q5KR4tWXpqJt7VGVYo27wuw=","k5supkP2ZCtRVpHgD0Q2Z5OEE01Pywf\u002BX61lmhSQ7BE=","7/T3tKGgSDlYDfZWYfF4PvG\u002BaE67jEnl/RQ2j047Gg4=","R05mRu\u002B46goExKzVfRbzBrHa5441dyBNzH\u002BunxqQFag=","h1DOlga1j8S8BKVkkGhvu6afykKkCTToMflheFFu4s8=","RhQwTq1QfO\u002BfgfQ21rzuDjhPk/si\u002BfOhiC9gzj\u002B2GTM=","ojuGAxuiWoo8dNhe\u002BGPRlzabBtTOlSgxqf0wpfeAUm4=","Gcw5Ks6RC\u002Bq1tNSjZMtiGQK7j\u002BV47BKPlN5G\u002BbJGO4E=","pIRpYdwOhqcyQS5WM3FCncIKlOwcFylzuYSOiG2M9Tc=","l1IGjOzk7KR5VCtbogemMqqsbvtVQ3/s5irodwgUj/M=","aVGRIpwirWD/BWAfTGpZKCm1HVGBXkfWJ42tUXV4/38=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","nyL0ifHQMNJCtGBixt6h3IhE5SkNXgkAJHXY2p31hZc="],"CachedAssets":{},"CachedCopyCandidates":{}}
+{"GlobalPropertiesHash":"0EjS55AK3nNm+E2gI7Vw9FjBeMbBtsDFHlsoUTiRTWw=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","1iGeozBbjm7U3S6OeGQA8GyTckrRJa0OG3ucmKnqUOE=","3HKJ\u002BCbnscYfoS37PIOP5tomIECJQpGCzoXN4g7sWL4=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","cGP7MJpz22qFMLQv6I3ax/fahKABEPhcW8m4A7KdX9w=","7Qui4ke7IUl0N/Qo\u002Bnsf2IiFGOxH7C/aUNhxpDmbxTo=","vRx3aaj8f\u002ByfskT\u002B7cztYC\u002BC2mck\u002Brkr92nspbWjyCQ=","L3q4TN/Imde9mKal1Ufmi9Go44AJjZLV4gsMDTbOpAU=","djZa3Aw\u002BJOy4PR32\u002By7CWAgaEYRz/Gi1k/HpnvHmdhg=","TO7wJmtX/jx7OLUFheSvqG9T7Xy43Jq25JLaiSK6204=","R46snh6NIbcL8lD53U\u002BkvEq5SyxYV4UqHn9nE/dkmlY=","hptZyZ1egk/7Sy9sLRca3LAFP\u002BpRBk4ZMPFQkhefddg=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","cn\u002BnmrJz6\u002BHPIPbo8CIz46Pf6LUsZoeyJ3iWbwwCFHw=","PooSnXofHpKIJqujyRh5lSzpdLmfNYz/2GWjHAFmsps=","3ppkjn1FD919EKyMB7jHVyBXSQf4aS4PJUUKKzDiSdc=","OzB5GESkdzA/kQR9vSNdGc7c1syAJA\u002BLT/R1xKuwGJc=","alwniXZFV7ivUpaEzoUGUUdQ\u002BplzqnHuH5sgO5epFuk=","D2cceMDFosHesWZD5OSgqulXoGBpaHHe5hkK0SEsFzs=","ccxh3bjSLVDvwHcWktSmLTBJR7NkNTbDu8adKchsQoU=","KEtR719GVpqeIaL3NCoZRBc5jZmCoHFHAYuaILuks8M=","ywh/A73hzfgwF1/3dO5VUtZZhxQxrZpOLMLhoelIwX0=","X7tTRe9qmzSSwvhdO1r\u002B/p5NzE9zLDX\u002Bez32gZVDrP4=","Xgway0wNF1VUzqzzZAcW1itjnb7YSfj7Gw9G7XLQ5hk=","NbYd0ZPM6sSezsQddb46Q5KR4tWXpqJt7VGVYo27wuw=","k5supkP2ZCtRVpHgD0Q2Z5OEE01Pywf\u002BX61lmhSQ7BE=","7/T3tKGgSDlYDfZWYfF4PvG\u002BaE67jEnl/RQ2j047Gg4=","R05mRu\u002B46goExKzVfRbzBrHa5441dyBNzH\u002BunxqQFag=","h1DOlga1j8S8BKVkkGhvu6afykKkCTToMflheFFu4s8=","RhQwTq1QfO\u002BfgfQ21rzuDjhPk/si\u002BfOhiC9gzj\u002B2GTM=","ojuGAxuiWoo8dNhe\u002BGPRlzabBtTOlSgxqf0wpfeAUm4=","Gcw5Ks6RC\u002Bq1tNSjZMtiGQK7j\u002BV47BKPlN5G\u002BbJGO4E=","pIRpYdwOhqcyQS5WM3FCncIKlOwcFylzuYSOiG2M9Tc=","l1IGjOzk7KR5VCtbogemMqqsbvtVQ3/s5irodwgUj/M=","aVGRIpwirWD/BWAfTGpZKCm1HVGBXkfWJ42tUXV4/38=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","RO9FAVN4Ni6r8AqrRo0pl89AewhFQmYeE\u002BQ1krC5iGQ="],"CachedAssets":{},"CachedCopyCandidates":{}}
 --- ./obj/Debug/net9.0/bbbAPIGL.MvcApplicationPartsAssemblyInfo.cs ---
 //------------------------------------------------------------------------------
 // <auto-generated>
@@ -3249,7 +3898,16 @@ using System.Reflection;
 [assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v9.0", FrameworkDisplayName = ".NET 9.0")]
 
 --- ./obj/Debug/net9.0/rjsmcshtml.dswa.cache.json ---
-{"GlobalPropertiesHash":"VhTxHYyiU3gI9zTnlooTF8fRKFqP/Jqi7J6smzQs0A8=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","CwXWY5wkP/5cwT30MUrciDEAbQhRc5TKuTpBfFs\u002BGpU=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","cGP7MJpz22qFMLQv6I3ax/fahKABEPhcW8m4A7KdX9w=","JzvYDyXV0RrLbVOYGNKdw1f9oBfQIua4s6nkZ8Rmj9k=","lLhPhJYcvGlLrHUOKy1tsqpIsRaksPh9Y1KAzMXUOdI=","7uIwrfuqCb8hYXrsekoqIMe/2NgxyDjAqyJsAeeCBTU=","TO7wJmtX/jx7OLUFheSvqG9T7Xy43Jq25JLaiSK6204=","R46snh6NIbcL8lD53U\u002BkvEq5SyxYV4UqHn9nE/dkmlY=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","Uf\u002BQPBIOlOy5N7yYpHNgLbO1SwxUjGhUPeujuQLnx7A=","fQ7us3RpcFPlEx/ZsPkAddTH\u002BDoM00d0LoiodcqbSyA=","lJRSu1QmfxOg\u002BSGUpSNbT4gG3LtFWCdPtbzPLBL7CAw=","D2cceMDFosHesWZD5OSgqulXoGBpaHHe5hkK0SEsFzs=","ccxh3bjSLVDvwHcWktSmLTBJR7NkNTbDu8adKchsQoU=","KEtR719GVpqeIaL3NCoZRBc5jZmCoHFHAYuaILuks8M=","ywh/A73hzfgwF1/3dO5VUtZZhxQxrZpOLMLhoelIwX0=","X7tTRe9qmzSSwvhdO1r\u002B/p5NzE9zLDX\u002Bez32gZVDrP4=","Xgway0wNF1VUzqzzZAcW1itjnb7YSfj7Gw9G7XLQ5hk=","NbYd0ZPM6sSezsQddb46Q5KR4tWXpqJt7VGVYo27wuw=","k5supkP2ZCtRVpHgD0Q2Z5OEE01Pywf\u002BX61lmhSQ7BE=","7/T3tKGgSDlYDfZWYfF4PvG\u002BaE67jEnl/RQ2j047Gg4=","R05mRu\u002B46goExKzVfRbzBrHa5441dyBNzH\u002BunxqQFag=","h1DOlga1j8S8BKVkkGhvu6afykKkCTToMflheFFu4s8=","RhQwTq1QfO\u002BfgfQ21rzuDjhPk/si\u002BfOhiC9gzj\u002B2GTM=","ojuGAxuiWoo8dNhe\u002BGPRlzabBtTOlSgxqf0wpfeAUm4=","Gcw5Ks6RC\u002Bq1tNSjZMtiGQK7j\u002BV47BKPlN5G\u002BbJGO4E=","pIRpYdwOhqcyQS5WM3FCncIKlOwcFylzuYSOiG2M9Tc=","l1IGjOzk7KR5VCtbogemMqqsbvtVQ3/s5irodwgUj/M=","aVGRIpwirWD/BWAfTGpZKCm1HVGBXkfWJ42tUXV4/38=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","nyL0ifHQMNJCtGBixt6h3IhE5SkNXgkAJHXY2p31hZc="],"CachedAssets":{},"CachedCopyCandidates":{}}
+{"GlobalPropertiesHash":"VhTxHYyiU3gI9zTnlooTF8fRKFqP/Jqi7J6smzQs0A8=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["J9nKyCznqOvN7RqxPGA1hgjDu\u002BsBYT20is1X/Tp0n/M=","1iGeozBbjm7U3S6OeGQA8GyTckrRJa0OG3ucmKnqUOE=","3HKJ\u002BCbnscYfoS37PIOP5tomIECJQpGCzoXN4g7sWL4=","mrZIJRW9tCS6irXadcIGi4V99ggii59JBVdkuHQi6BM=","cGP7MJpz22qFMLQv6I3ax/fahKABEPhcW8m4A7KdX9w=","7Qui4ke7IUl0N/Qo\u002Bnsf2IiFGOxH7C/aUNhxpDmbxTo=","vRx3aaj8f\u002ByfskT\u002B7cztYC\u002BC2mck\u002Brkr92nspbWjyCQ=","L3q4TN/Imde9mKal1Ufmi9Go44AJjZLV4gsMDTbOpAU=","djZa3Aw\u002BJOy4PR32\u002By7CWAgaEYRz/Gi1k/HpnvHmdhg=","TO7wJmtX/jx7OLUFheSvqG9T7Xy43Jq25JLaiSK6204=","R46snh6NIbcL8lD53U\u002BkvEq5SyxYV4UqHn9nE/dkmlY=","hptZyZ1egk/7Sy9sLRca3LAFP\u002BpRBk4ZMPFQkhefddg=","0ejAJTU8rDnc/rPmNMFTJZSnA7jao7ANqfJjlgEEfF4=","cn\u002BnmrJz6\u002BHPIPbo8CIz46Pf6LUsZoeyJ3iWbwwCFHw=","PooSnXofHpKIJqujyRh5lSzpdLmfNYz/2GWjHAFmsps=","3ppkjn1FD919EKyMB7jHVyBXSQf4aS4PJUUKKzDiSdc=","OzB5GESkdzA/kQR9vSNdGc7c1syAJA\u002BLT/R1xKuwGJc=","alwniXZFV7ivUpaEzoUGUUdQ\u002BplzqnHuH5sgO5epFuk=","D2cceMDFosHesWZD5OSgqulXoGBpaHHe5hkK0SEsFzs=","ccxh3bjSLVDvwHcWktSmLTBJR7NkNTbDu8adKchsQoU=","KEtR719GVpqeIaL3NCoZRBc5jZmCoHFHAYuaILuks8M=","ywh/A73hzfgwF1/3dO5VUtZZhxQxrZpOLMLhoelIwX0=","X7tTRe9qmzSSwvhdO1r\u002B/p5NzE9zLDX\u002Bez32gZVDrP4=","Xgway0wNF1VUzqzzZAcW1itjnb7YSfj7Gw9G7XLQ5hk=","NbYd0ZPM6sSezsQddb46Q5KR4tWXpqJt7VGVYo27wuw=","k5supkP2ZCtRVpHgD0Q2Z5OEE01Pywf\u002BX61lmhSQ7BE=","7/T3tKGgSDlYDfZWYfF4PvG\u002BaE67jEnl/RQ2j047Gg4=","R05mRu\u002B46goExKzVfRbzBrHa5441dyBNzH\u002BunxqQFag=","h1DOlga1j8S8BKVkkGhvu6afykKkCTToMflheFFu4s8=","RhQwTq1QfO\u002BfgfQ21rzuDjhPk/si\u002BfOhiC9gzj\u002B2GTM=","ojuGAxuiWoo8dNhe\u002BGPRlzabBtTOlSgxqf0wpfeAUm4=","Gcw5Ks6RC\u002Bq1tNSjZMtiGQK7j\u002BV47BKPlN5G\u002BbJGO4E=","pIRpYdwOhqcyQS5WM3FCncIKlOwcFylzuYSOiG2M9Tc=","l1IGjOzk7KR5VCtbogemMqqsbvtVQ3/s5irodwgUj/M=","aVGRIpwirWD/BWAfTGpZKCm1HVGBXkfWJ42tUXV4/38=","uE3Aslsj2SZlEvtW5iWDx6mV4C/Rxc4dal8IpA3Fguw=","RO9FAVN4Ni6r8AqrRo0pl89AewhFQmYeE\u002BQ1krC5iGQ="],"CachedAssets":{},"CachedCopyCandidates":{}}
+--- ./DTOs/GrabacionDto.cs ---
+namespace bbbAPIGL.DTOs;
+
+public class GrabacionDto
+{
+    public string RecordId { get; set; } = string.Empty;
+    public string PlaybackUrl { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+}
 --- ./DTOs/CrearSalaResponse.cs ---
 namespace bbbAPIGL.DTOs;
 
@@ -3378,6 +4036,513 @@ public class SalasController : ControllerBase
             return NotFound(new { error = ex.Message });
         }
     }
+    [HttpGet("grabaciones/{idCursoAbierto}")]
+    [ProducesResponseType(typeof(List<GrabacionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerUrlGrabacion(int idCursoAbierto)
+    {
+        var response = await _salaService.ObtenerUrlsGrabacionesAsync(idCursoAbierto);
+
+        if (response == null)
+        {
+            return NotFound(new { error = $"No se encontró un curso con ID: {idCursoAbierto}" });
+        }
+
+        return Ok(response); // Devuelve la lista (puede estar vacía)
+    }
+}
+--- ./publish/appsettings.Production.json ---
+{}
+--- ./publish/bbbAPIGL.runtimeconfig.json ---
+{
+  "runtimeOptions": {
+    "tfm": "net9.0",
+    "frameworks": [
+      {
+        "name": "Microsoft.NETCore.App",
+        "version": "9.0.0"
+      },
+      {
+        "name": "Microsoft.AspNetCore.App",
+        "version": "9.0.0"
+      }
+    ],
+    "configProperties": {
+      "System.GC.Server": true,
+      "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
+      "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
+    }
+  }
+}
+--- ./publish/appsettings.Development.json ---
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+
+--- ./publish/bbbAPIGL.deps.json ---
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0/linux-x64",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {},
+    ".NETCoreApp,Version=v9.0/linux-x64": {
+      "bbbAPIGL/1.0.0": {
+        "dependencies": {
+          "AWSSDK.S3": "4.0.7",
+          "Google.Apis.Auth": "1.70.0",
+          "Google.Apis.Calendar.v3": "1.69.0.3746",
+          "Google.Apis.Gmail.v1": "1.70.0.3833",
+          "Microsoft.AspNetCore.OpenApi": "9.0.7",
+          "MimeKit": "4.13.0",
+          "MySqlConnector": "2.4.0",
+          "Npgsql": "9.0.3",
+          "Swashbuckle.AspNetCore": "9.0.4"
+        },
+        "runtime": {
+          "bbbAPIGL.dll": {}
+        }
+      },
+      "AWSSDK.Core/4.0.0.26": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.26"
+          }
+        }
+      },
+      "AWSSDK.S3/4.0.7": {
+        "dependencies": {
+          "AWSSDK.Core": "4.0.0.26"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.S3.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.7.0"
+          }
+        }
+      },
+      "BouncyCastle.Cryptography/2.5.1": {
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "assemblyVersion": "2.0.0.0",
+            "fileVersion": "2.5.1.28965"
+          }
+        }
+      },
+      "Google.Apis/1.70.0": {
+        "dependencies": {
+          "Google.Apis.Core": "1.70.0"
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.dll": {
+            "assemblyVersion": "1.70.0.0",
+            "fileVersion": "1.70.0.0"
+          }
+        }
+      },
+      "Google.Apis.Auth/1.70.0": {
+        "dependencies": {
+          "Google.Apis": "1.70.0",
+          "Google.Apis.Core": "1.70.0",
+          "System.Management": "7.0.2"
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Auth.dll": {
+            "assemblyVersion": "1.70.0.0",
+            "fileVersion": "1.70.0.0"
+          }
+        }
+      },
+      "Google.Apis.Calendar.v3/1.69.0.3746": {
+        "dependencies": {
+          "Google.Apis": "1.70.0",
+          "Google.Apis.Auth": "1.70.0"
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Calendar.v3.dll": {
+            "assemblyVersion": "1.69.0.3746",
+            "fileVersion": "1.69.0.3746"
+          }
+        }
+      },
+      "Google.Apis.Core/1.70.0": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3"
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Core.dll": {
+            "assemblyVersion": "1.70.0.0",
+            "fileVersion": "1.70.0.0"
+          }
+        }
+      },
+      "Google.Apis.Gmail.v1/1.70.0.3833": {
+        "dependencies": {
+          "Google.Apis": "1.70.0",
+          "Google.Apis.Auth": "1.70.0"
+        },
+        "runtime": {
+          "lib/net6.0/Google.Apis.Gmail.v1.dll": {
+            "assemblyVersion": "1.70.0.3833",
+            "fileVersion": "1.70.0.3833"
+          }
+        }
+      },
+      "Microsoft.AspNetCore.OpenApi/9.0.7": {
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.25"
+        },
+        "runtime": {
+          "lib/net9.0/Microsoft.AspNetCore.OpenApi.dll": {
+            "assemblyVersion": "9.0.7.0",
+            "fileVersion": "9.0.725.31702"
+          }
+        }
+      },
+      "Microsoft.Extensions.ApiDescription.Server/9.0.0": {},
+      "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {},
+      "Microsoft.Extensions.Logging.Abstractions/8.0.2": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2"
+        }
+      },
+      "Microsoft.OpenApi/1.6.25": {
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.OpenApi.dll": {
+            "assemblyVersion": "1.6.25.0",
+            "fileVersion": "1.6.25.0"
+          }
+        }
+      },
+      "MimeKit/4.13.0": {
+        "dependencies": {
+          "BouncyCastle.Cryptography": "2.5.1",
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        },
+        "runtime": {
+          "lib/net8.0/MimeKit.dll": {
+            "assemblyVersion": "4.13.0.0",
+            "fileVersion": "4.13.0.0"
+          }
+        }
+      },
+      "MySqlConnector/2.4.0": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        },
+        "runtime": {
+          "lib/net9.0/MySqlConnector.dll": {
+            "assemblyVersion": "2.0.0.0",
+            "fileVersion": "2.4.0.0"
+          }
+        }
+      },
+      "Newtonsoft.Json/13.0.3": {
+        "runtime": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
+            "assemblyVersion": "13.0.0.0",
+            "fileVersion": "13.0.3.27908"
+          }
+        }
+      },
+      "Npgsql/9.0.3": {
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        },
+        "runtime": {
+          "lib/net8.0/Npgsql.dll": {
+            "assemblyVersion": "9.0.3.0",
+            "fileVersion": "9.0.3.0"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore/9.0.4": {
+        "dependencies": {
+          "Microsoft.Extensions.ApiDescription.Server": "9.0.0",
+          "Swashbuckle.AspNetCore.Swagger": "9.0.4",
+          "Swashbuckle.AspNetCore.SwaggerGen": "9.0.4",
+          "Swashbuckle.AspNetCore.SwaggerUI": "9.0.4"
+        }
+      },
+      "Swashbuckle.AspNetCore.Swagger/9.0.4": {
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.25"
+        },
+        "runtime": {
+          "lib/net9.0/Swashbuckle.AspNetCore.Swagger.dll": {
+            "assemblyVersion": "9.0.4.0",
+            "fileVersion": "9.0.4.1727"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerGen/9.0.4": {
+        "dependencies": {
+          "Swashbuckle.AspNetCore.Swagger": "9.0.4"
+        },
+        "runtime": {
+          "lib/net9.0/Swashbuckle.AspNetCore.SwaggerGen.dll": {
+            "assemblyVersion": "9.0.4.0",
+            "fileVersion": "9.0.4.1727"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerUI/9.0.4": {
+        "runtime": {
+          "lib/net9.0/Swashbuckle.AspNetCore.SwaggerUI.dll": {
+            "assemblyVersion": "9.0.4.0",
+            "fileVersion": "9.0.4.1727"
+          }
+        }
+      },
+      "System.CodeDom/7.0.0": {
+        "runtime": {
+          "lib/net7.0/System.CodeDom.dll": {
+            "assemblyVersion": "7.0.0.0",
+            "fileVersion": "7.0.22.51805"
+          }
+        }
+      },
+      "System.Management/7.0.2": {
+        "dependencies": {
+          "System.CodeDom": "7.0.0"
+        },
+        "runtime": {
+          "lib/net7.0/System.Management.dll": {
+            "assemblyVersion": "7.0.0.2",
+            "fileVersion": "7.0.723.27404"
+          }
+        }
+      },
+      "System.Security.Cryptography.Pkcs/8.0.1": {}
+    }
+  },
+  "libraries": {
+    "bbbAPIGL/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AWSSDK.Core/4.0.0.26": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-sP+yvQm/caU3MNAmk/AeI9t/SN2AGoXw84UK7KgjHvjyRxEzgb2bEpiClNGfNqtfI+9pGBSG2OwMOvapajoBxQ==",
+      "path": "awssdk.core/4.0.0.26",
+      "hashPath": "awssdk.core.4.0.0.26.nupkg.sha512"
+    },
+    "AWSSDK.S3/4.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5+DpOmodS7IBxWamMxv2VaK+kkTHv/rQPakop0b33ymd/zX9XQU/39sRJdaxYgJ2igMmVEE74+i5PXy3JowcgA==",
+      "path": "awssdk.s3/4.0.7",
+      "hashPath": "awssdk.s3.4.0.7.nupkg.sha512"
+    },
+    "BouncyCastle.Cryptography/2.5.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-zy8TMeTP+1FH2NrLaNZtdRbBdq7u5MI+NFZQOBSM69u5RFkciinwzV2eveY6Kjf5MzgsYvvl6kTStsj3JrXqkg==",
+      "path": "bouncycastle.cryptography/2.5.1",
+      "hashPath": "bouncycastle.cryptography.2.5.1.nupkg.sha512"
+    },
+    "Google.Apis/1.70.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-K6VKPkHRN1P7pMb84eZu1rFyoie7LIYYsjTPvTnEH2lbscU1sBLR1C1MtsCoSJzgDIjr0yVGmSKnIC4D73ro1g==",
+      "path": "google.apis/1.70.0",
+      "hashPath": "google.apis.1.70.0.nupkg.sha512"
+    },
+    "Google.Apis.Auth/1.70.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2gnpcYUaD5WS2/2922J+ji1tEKcNtxu+aQoiNVWhfcGwDqgcc5vk6ND6591M2UaGzJn0EdH325rsNHzi/MvA/A==",
+      "path": "google.apis.auth/1.70.0",
+      "hashPath": "google.apis.auth.1.70.0.nupkg.sha512"
+    },
+    "Google.Apis.Calendar.v3/1.69.0.3746": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-CyHv8R2wYP5R6R1iQBw1HSd5/cAQ2tDSDEykVYmmm+Nv1YyuW3sQtbwBye37xGotmzQeGUKtYw+/y0Us9VAh+Q==",
+      "path": "google.apis.calendar.v3/1.69.0.3746",
+      "hashPath": "google.apis.calendar.v3.1.69.0.3746.nupkg.sha512"
+    },
+    "Google.Apis.Core/1.70.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-R7Mbea2iB/TN+3BA1LPCqb1eT2HxnILJ+ASl5pdhHHc8uSe95JTTnM2DEVbVBQ3vo9/FpbBxWBRjP1ed9QK9CQ==",
+      "path": "google.apis.core/1.70.0",
+      "hashPath": "google.apis.core.1.70.0.nupkg.sha512"
+    },
+    "Google.Apis.Gmail.v1/1.70.0.3833": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Gh3ziWCiCGdEqGkBLp5PzK811YPARjoB+PRnMeBEZ3K2dFgdqVJGZoZfZp8C6BiWMEIFtyvAnO4rPm0oKsRD5w==",
+      "path": "google.apis.gmail.v1/1.70.0.3833",
+      "hashPath": "google.apis.gmail.v1.1.70.0.3833.nupkg.sha512"
+    },
+    "Microsoft.AspNetCore.OpenApi/9.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8aG0mkgmA38IDJ0ca5HIpdexKjHXIh0z1kIdw5WyM6CrD4+CEt97UgSwBBBCHG6QQKV0hj2mfkwtEcqrJBcu8g==",
+      "path": "microsoft.aspnetcore.openapi/9.0.7",
+      "hashPath": "microsoft.aspnetcore.openapi.9.0.7.nupkg.sha512"
+    },
+    "Microsoft.Extensions.ApiDescription.Server/9.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1Kzzf7pRey40VaUkHN9/uWxrKVkLu2AQjt+GVeeKLLpiEHAJ1xZRsLSh4ZZYEnyS7Kt2OBOPmsXNdU+wbcOl5w==",
+      "path": "microsoft.extensions.apidescription.server/9.0.0",
+      "hashPath": "microsoft.extensions.apidescription.server.9.0.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection.Abstractions/8.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-3iE7UF7MQkCv1cxzCahz+Y/guQbTqieyxyaWKhrRO91itI9cOKO76OHeQDahqG4MmW5umr3CcCvGmK92lWNlbg==",
+      "path": "microsoft.extensions.dependencyinjection.abstractions/8.0.2",
+      "hashPath": "microsoft.extensions.dependencyinjection.abstractions.8.0.2.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Logging.Abstractions/8.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nroMDjS7hNBPtkZqVBbSiQaQjWRDxITI8Y7XnDs97rqG3EbzVTNLZQf7bIeUJcaHOV8bca47s1Uxq94+2oGdxA==",
+      "path": "microsoft.extensions.logging.abstractions/8.0.2",
+      "hashPath": "microsoft.extensions.logging.abstractions.8.0.2.nupkg.sha512"
+    },
+    "Microsoft.OpenApi/1.6.25": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ZahSqNGtNV7N0JBYS/IYXPkLVexL/AZFxo6pqxv6A7Uli7Q7zfitNjkaqIcsV73Ukzxi4IlJdyDgcQiMXiH8cw==",
+      "path": "microsoft.openapi/1.6.25",
+      "hashPath": "microsoft.openapi.1.6.25.nupkg.sha512"
+    },
+    "MimeKit/4.13.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-oa4JuhAzJydHnPCc/XWeyBUGd3uiVyWW0NXqOVgkXEHjbHlPVBssklK3mpw9sokjzAaBGdj0bceFsr+NXvAukA==",
+      "path": "mimekit/4.13.0",
+      "hashPath": "mimekit.4.13.0.nupkg.sha512"
+    },
+    "MySqlConnector/2.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-78M+gVOjbdZEDIyXQqcA7EYlCGS3tpbUELHvn6638A2w0pkPI625ixnzsa5staAd3N9/xFmPJtkKDYwsXpFi/w==",
+      "path": "mysqlconnector/2.4.0",
+      "hashPath": "mysqlconnector.2.4.0.nupkg.sha512"
+    },
+    "Newtonsoft.Json/13.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ==",
+      "path": "newtonsoft.json/13.0.3",
+      "hashPath": "newtonsoft.json.13.0.3.nupkg.sha512"
+    },
+    "Npgsql/9.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tPvY61CxOAWxNsKLEBg+oR646X4Bc8UmyQ/tJszL/7mEmIXQnnBhVJZrZEEUv0Bstu0mEsHZD5At3EO8zQRAYw==",
+      "path": "npgsql/9.0.3",
+      "hashPath": "npgsql.9.0.3.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore/9.0.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4hghaogMoS87Ivjj8s7aGuGsxrsjXZpjNvahLsN+zSLrZQcV8zQyiBweBd9AXC1sGkeNYb9/hbeS1EXrZ/hKjQ==",
+      "path": "swashbuckle.aspnetcore/9.0.4",
+      "hashPath": "swashbuckle.aspnetcore.9.0.4.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore.Swagger/9.0.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-syU8U4Eg3DfhU+BBeDUh66erwDsYOhp82InXbrOsqWP3qoOfQbBtePcTetkLNanovYHYX40alZBE6gQQFtBZkQ==",
+      "path": "swashbuckle.aspnetcore.swagger/9.0.4",
+      "hashPath": "swashbuckle.aspnetcore.swagger.9.0.4.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore.SwaggerGen/9.0.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-GnCikaq7kagEckGGsrVnKl2icRQebyr14/7s3T/rQQO7edOIXkxtjTOJZqbazOxaTXBDCDdSInMiYbMQhFnE5Q==",
+      "path": "swashbuckle.aspnetcore.swaggergen/9.0.4",
+      "hashPath": "swashbuckle.aspnetcore.swaggergen.9.0.4.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore.SwaggerUI/9.0.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2ugT2OvZsKHqk/2rMDmuqDuFmtix0NvzlXxAfnfHROVMTovbx7Z0UsOQHZa462DBTgdBFnR2Ss6wm4fypfymdA==",
+      "path": "swashbuckle.aspnetcore.swaggerui/9.0.4",
+      "hashPath": "swashbuckle.aspnetcore.swaggerui.9.0.4.nupkg.sha512"
+    },
+    "System.CodeDom/7.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-GLltyqEsE5/3IE+zYRP5sNa1l44qKl9v+bfdMcwg+M9qnQf47wK3H0SUR/T+3N4JEQXF3vV4CSuuo0rsg+nq2A==",
+      "path": "system.codedom/7.0.0",
+      "hashPath": "system.codedom.7.0.0.nupkg.sha512"
+    },
+    "System.Management/7.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/qEUN91mP/MUQmJnM5y5BdT7ZoPuVrtxnFlbJ8a3kBJGhe2wCzBfnPFtK2wTtEEcf3DMGR9J00GZZfg6HRI6yA==",
+      "path": "system.management/7.0.2",
+      "hashPath": "system.management.7.0.2.nupkg.sha512"
+    },
+    "System.Security.Cryptography.Pkcs/8.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-CoCRHFym33aUSf/NtWSVSZa99dkd0Hm7OCZUxORBjRB16LNhIEOf8THPqzIYlvKM0nNDAPTRBa1FxEECrgaxxA==",
+      "path": "system.security.cryptography.pkcs/8.0.1",
+      "hashPath": "system.security.cryptography.pkcs.8.0.1.nupkg.sha512"
+    }
+  }
+}
+--- ./publish/google-credentials.json ---
+{
+  "type": "service_account",
+  "project_id": "bbb-api-invitador",
+  "private_key_id": "69ebdee7b1e210ef4d41c7cb7362dc1fe245aafe",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQCuOnpk4+vHI4iW\nJ+JpB4OZgb+/Kfo8+lO4+lKoF6kHFus1X9AjqIAdNuISz0L5kfYhFv1JJ1sTqYts\nfvQBQCKFTvAWwN98KbHI0duq+ZU41Bh+y091Z1DIutOrQSD59y4tq9nt2VvxgTqG\nZaKSwtmvQ+nUZ8zoyX3+kPJPQqckNvVRdc6m3osg2Sebc89YcpKhG3S93J5JrFSG\naUN4tevjEebbbOtnHfOEq91/MFAbcQPJKSQW0yXtfsi7mkPDy4EoX+BhWnS2j6qL\n/40tvqooU+Wzd+vWHeSowbmBRvdOi3Mf97PxSUiET2zJzpYqhP/u5qkqmMgM6CCo\nY1pcKfJ3AgMBAAECggEAUF5LTTTR8ydR/yngx+AedXYjlDPx6aTzb9WQwVdAsjOB\nRjqvUXONvWwutsyCsYsCBVuMdO1Blv1TgjXBqr4B7opuN6C6tpSpHOCpOuIsUm2L\n6xkvyxFgc2ey8kF1y7iYxZqLSatFPU8GRy6k4pwdPDrQpxlGrW8cvovwKl2tqgco\nH+Hto47NDtqeSOXIYqbt+he16uzzasHyNlfDlK0Y4bNeJn2L0gcSNvfGnqq2Nanh\nvGh8lfVg6a1gwbp8BVfqHERuaf+BBDh1HbCmVAy6qKGN/9suXVFzfgzAIv2uUw13\nybHUmdkMF8MUYkyZCVh9vGgPVOfzUzKufysBqLTtQQKBgQDp7w8aljq5JOpiCkYR\neyBf6tgoXOSaNpKg1fNTuZWqO1U4LZ+WddJRUsyxvtxt0gUalotv6HWVQupXE3U3\nMJ8cDTqvEs5fAbLv3MsmgTFL5i86qM87qNAHD1MCdgJlI2usPavbxzZFnNEK4fbF\nMPlXiuY3kqUgrgd5e05EaT1rIQKBgQC+qa1OZHzT6MfRMqx9fp6MxTQMEyxYlskC\nZep76EZ+am8kFQ55eB4QhGtOE8uS0ZaYavPd+d0HSZMyCxe/cK7rOQQpP//pZ1DI\nNxhAuxvDItoIfg+iJBv9bUK637FBuTZuNFA2ISKIr3VnrX1Dhg1/uBVhEGZpc014\nmB2BKGmClwKBgQC1Er32LmK1/MUPrjQeQ9gDZpx6YazxUVyd8f2uyO/4HIUSPv5Q\nUFLDb/vReZLVzsL0maLEtIKPToRlckJAvfnqlLLf4Qass3v1/kmhPE8UGNBl71S5\nMSoUzN/L/9xKvOgTIolsTP7NU1zbt5xzdj0KbhFU4sW+TfarKa6jdXJ9AQKBgQCb\nsBwXVlDkDUIVHkbhluJK2sEcVw+wKzhqX+RwV4QwuCKXGSafo6kRHcAtmlZyRfit\n7y/Bg8WrrLWoeIxkw9PhucYfFOaYpce+JdcFDISn/C6EHsQPR2Mftvd1dzHcFCxR\nIyCYgsgbSwMYrP8Lg0xEjYHPp7+ovgF1xujYzbIScwKBgQCP/Jw2N3LRBLnTqy5V\nCU+O0tYObhD2PCdBc5UBiY3A1ZGJ7ptz28wsgnOktBCwTIEY6Sx0QEikSSDopZ+H\nff7/vkcHm90t0/O6IDGm31Rtb8NIKFKK/OCX8GkIjVH2CAcMvW6Ie2nNGdTZ0zwe\nSUIPVRL3RY63scu/ETkOmBsUtw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "bbb-api-invitador@bbb-api-invitador.iam.gserviceaccount.com",
+  "client_id": "102986298993147958391",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bbb-api-invitador%40bbb-api-invitador.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
+
+--- ./publish/bbbAPIGL.staticwebassets.endpoints.json ---
+{"Version":1,"ManifestType":"Publish","Endpoints":[]}
+--- ./publish/appsettings.json ---
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "PostgresDb": "Host=18.224.6.161;Port=5433;Username=postgres;Password=d7e1b88196bb45983bc1dd03a90e81cd80d403fb945e26dc;Database=greenlight-v3-production",
+    "MySqlDb": "server=ec2-18-222-25-254.us-east-2.compute.amazonaws.com;user=root;password=Smith3976!;database=sige_sam_v3"
+  },
+  "SalaSettings": {
+    "BaseUrl": "https://bbb.norteamericano.com",
+    //"UserEmail": "jallende@norteamericano.cl"
+  },
+  "GoogleCalendarSettings": {
+    "CredentialsFile": "google-credentials.json",
+    "UserToImpersonate": "jallende@norteamericano.cl"
+  },
+  "S3Settings": {
+    "BuckerName": "bbbgl",
+    "Region": "us-east-2"
+  }
 }
 --- ./.vscode/launch.json ---
 {
@@ -3416,6 +4581,14 @@ public class Sala
     public required string ClaveEspectador { get; set; }
 }
 
+--- ./Models/RecordingInfo.cs ---
+namespace bbbAPIGL.Models;
+
+public class RecordingInfo
+{
+    public string RecordId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
 --- ./google-credentials.json ---
 {
   "type": "service_account",
@@ -3450,8 +4623,49 @@ public class Sala
   },
   "GoogleCalendarSettings": {
     "CredentialsFile": "google-credentials.json",
-    "UserToImpersonate": "norteamericanoonline@norteamericano.cl"
+    "UserToImpersonate": "jallende@norteamericano.cl"
+  },
+  "S3Settings": {
+    "BuckerName": "bbbgl",
+    "Region": "us-east-2"
   }
+}
+--- ./Services/S3Service.cs ---
+using Amazon;
+using Amazon.S3;
+using Amazon.S3.Model;
+
+namespace bbbAPIGL.Services;
+
+public class S3Service : IS3Service
+{
+    private readonly string _bucketName;
+    private readonly IAmazonS3 _s3Client;
+
+    public S3Service(IConfiguration configuration)
+    {
+        var settings = configuration.GetSection("S3Settings");
+        _bucketName = settings["BucketName"]!;
+        var region = RegionEndpoint.GetBySystemName(settings["Region"]!);
+        
+        // El SDK buscará automáticamente las credenciales del Rol de IAM 
+        // asociado a la instancia EC2 cuando se ejecute en producción.
+        _s3Client = new AmazonS3Client(region);
+    }
+
+    public Task<string> GetPresignedUrlAsync(string key)
+    {
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucketName,
+            Key = key,
+            Expires = DateTime.UtcNow.AddHours(1) // La URL será válida por 1 hora
+        };
+        
+        // Esta función genera la URL firmada.
+        string url = _s3Client.GetPreSignedURL(request);
+        return Task.FromResult(url);
+    }
 }
 --- ./Services/IEmailService.cs ---
 using System.Collections.Generic;
@@ -3528,7 +4742,7 @@ public class GoogleCalendarService : IEmailService
             .Replace("=", "");
         
         var message = new Message { Raw = rawMessage };
-        await service.Users.Messages.Send(message, "me").ExecuteAsync();
+await service.Users.Messages.Send(message, "jallende@norteamericano.cl").ExecuteAsync();
     }
 
     private async Task<CalendarService> GetCalendarServiceAsync()
@@ -3575,6 +4789,7 @@ public interface ISalaService
     Task<CrearSalaResponse> CrearNuevaSalaAsync(CrearSalaRequest request);
     Task<bool> EliminarSalaAsync(Guid roomId);
     Task<EnviarInvitacionCursoResponse> EnviarInvitacionesCursoAsync(EnviarInvitacionCursoRequest request);
+    Task<List<GrabacionDto>?> ObtenerUrlsGrabacionesAsync(int idCursoAbierto);
 }
 
 --- ./Services/SalaService.cs ---
@@ -3628,7 +4843,7 @@ public class SalaService : ISalaService
             ClaveModerador = claveModerador,
             ClaveEspectador = claveEspectador
         };
-        
+
         Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
 
         if (newRoomId is null)
@@ -3678,7 +4893,7 @@ public class SalaService : ISalaService
 
         var asunto = $"Invitación a la sala: {sala.NombreSala}";
         var cuerpoHtml = $"<p>Hola,</p><p>Has sido invitado a unirte a la sala virtual '<strong>{sala.NombreSala}</strong>'.</p>" +
-                         $"<p>Puedes unirte aquí: <a href='{sala.UrlSala}'>{sala.UrlSala}</a></p>" +
+                         $"<p>Puedes unirte aqui: <a href='{sala.UrlSala}'>{sala.UrlSala}</a></p>" +
                          $"<p>Clave de Espectador: <strong>{sala.ClaveEspectador}</strong></p>";
 
         await _emailService.EnviarCorreosAsync(correos, asunto, cuerpoHtml);
@@ -3706,11 +4921,47 @@ public class SalaService : ISalaService
         var part4 = new string(Enumerable.Repeat(chars, 3).Select(s => s[random.Next(s.Length)]).ToArray());
         return $"{part1}-{part2}-{part3}-{part4}";
     }
-    
+
     private static string GeneraRandomPassword(int length)
     {
         const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         var random = new Random();
         return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
     }
+    public async Task<List<GrabacionDto>?> ObtenerUrlsGrabacionesAsync(int idCursoAbierto)
+    {
+        // Paso 1: Obtener el RoomId desde MySQL (esto no cambia)
+        var curso = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(idCursoAbierto);
+        if (curso == null || !Guid.TryParse(curso.RoomId, out var roomId))
+        {
+            return null; 
+        }
+
+        // Paso 2: Obtener TODAS las grabaciones para ese RoomId desde PostgreSQL
+        var recordingInfos = await _salaRepository.ObtenerTodosLosRecordIdsPorRoomIdAsync(roomId);
+
+        if (recordingInfos == null || !recordingInfos.Any())
+        {
+            return new List<GrabacionDto>();
+        }
+
+        // Paso 3: Construir la lista de URLs de reproducción
+        var baseUrl = _configuration["SalaSettings:BaseUrl"];
+        
+        var grabacionesDto = recordingInfos.Select(rec => new GrabacionDto
+        {
+            RecordId = rec.RecordId,
+            CreatedAt = rec.CreatedAt.ToString("yyyy-MM-dd"),
+            PlaybackUrl = $"{baseUrl}/playback/presentation/2.3/{rec.RecordId}"
+        }).ToList();
+
+        return grabacionesDto;
+    }
+}
+--- ./Services/Is3Service.cs ---
+namespace bbbAPIGL.Services;
+
+public interface IS3Service
+{
+    Task<string> GetPresignedUrlAsync(string key);
 }

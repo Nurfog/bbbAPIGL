@@ -48,7 +48,7 @@ public class SalaService : ISalaService
             ClaveModerador = claveModerador,
             ClaveEspectador = claveEspectador
         };
-        
+
         Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
 
         if (newRoomId is null)
@@ -98,7 +98,7 @@ public class SalaService : ISalaService
 
         var asunto = $"Invitación a la sala: {sala.NombreSala}";
         var cuerpoHtml = $"<p>Hola,</p><p>Has sido invitado a unirte a la sala virtual '<strong>{sala.NombreSala}</strong>'.</p>" +
-                         $"<p>Puedes unirte aquí: <a href='{sala.UrlSala}'>{sala.UrlSala}</a></p>" +
+                         $"<p>Puedes unirte aqui: <a href='{sala.UrlSala}'>{sala.UrlSala}</a></p>" +
                          $"<p>Clave de Espectador: <strong>{sala.ClaveEspectador}</strong></p>";
 
         await _emailService.EnviarCorreosAsync(correos, asunto, cuerpoHtml);
@@ -126,11 +126,40 @@ public class SalaService : ISalaService
         var part4 = new string(Enumerable.Repeat(chars, 3).Select(s => s[random.Next(s.Length)]).ToArray());
         return $"{part1}-{part2}-{part3}-{part4}";
     }
-    
+
     private static string GeneraRandomPassword(int length)
     {
         const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         var random = new Random();
         return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+    public async Task<List<GrabacionDto>?> ObtenerUrlsGrabacionesAsync(int idCursoAbierto)
+    {
+        // Paso 1: Obtener el RoomId desde MySQL (esto no cambia)
+        var curso = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(idCursoAbierto);
+        if (curso == null || !Guid.TryParse(curso.RoomId, out var roomId))
+        {
+            return null; 
+        }
+
+        // Paso 2: Obtener TODAS las grabaciones para ese RoomId desde PostgreSQL
+        var recordingInfos = await _salaRepository.ObtenerTodosLosRecordIdsPorRoomIdAsync(roomId);
+
+        if (recordingInfos == null || !recordingInfos.Any())
+        {
+            return new List<GrabacionDto>();
+        }
+
+        // Paso 3: Construir la lista de URLs de reproducción
+        var baseUrl = _configuration["SalaSettings:BaseUrl"];
+        
+        var grabacionesDto = recordingInfos.Select(rec => new GrabacionDto
+        {
+            RecordId = rec.RecordId,
+            CreatedAt = rec.CreatedAt.ToString("yyyy-MM-dd"),
+            PlaybackUrl = $"{baseUrl}/playback/presentation/2.3/{rec.RecordId}"
+        }).ToList();
+
+        return grabacionesDto;
     }
 }

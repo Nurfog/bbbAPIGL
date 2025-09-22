@@ -13,8 +13,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ISalaService, SalaService>();
 builder.Services.AddScoped<ISalaRepository, SalaRepository>();
 builder.Services.AddScoped<ICursoRepository, MySqlCursoRepository>();
-
 builder.Services.AddTransient<IEmailService, GoogleCalendarService>();
+builder.Services.AddScoped<IS3Service, S3Service>();
 
 // 2. Construir la aplicación
 var app = builder.Build();

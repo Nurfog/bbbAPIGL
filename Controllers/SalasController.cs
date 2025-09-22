@@ -68,4 +68,18 @@ public class SalasController : ControllerBase
             return NotFound(new { error = ex.Message });
         }
     }
+    [HttpGet("grabaciones/{idCursoAbierto}")]
+    [ProducesResponseType(typeof(List<GrabacionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObtenerUrlGrabacion(int idCursoAbierto)
+    {
+        var response = await _salaService.ObtenerUrlsGrabacionesAsync(idCursoAbierto);
+
+        if (response == null)
+        {
+            return NotFound(new { error = $"No se encontró un curso con ID: {idCursoAbierto}" });
+        }
+
+        return Ok(response); // Devuelve la lista (puede estar vacía)
+    }
 }

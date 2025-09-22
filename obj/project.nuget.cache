@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "WZb3CfwsNeI=",
+  "dgSpecHash": "GHk0Gg8YynM=",
   "success": true,
   "projectFilePath": "/home/juan/bbbAPIGL/bbbAPIGL.csproj",
   "expectedPackageFiles": [
+    "/home/juan/.nuget/packages/awssdk.core/4.0.0.26/awssdk.core.4.0.0.26.nupkg.sha512",
+    "/home/juan/.nuget/packages/awssdk.s3/4.0.7/awssdk.s3.4.0.7.nupkg.sha512",
     "/home/juan/.nuget/packages/bouncycastle.cryptography/2.5.1/bouncycastle.cryptography.2.5.1.nupkg.sha512",
     "/home/juan/.nuget/packages/google.apis/1.70.0/google.apis.1.70.0.nupkg.sha512",
     "/home/juan/.nuget/packages/google.apis.auth/1.70.0/google.apis.auth.1.70.0.nupkg.sha512",

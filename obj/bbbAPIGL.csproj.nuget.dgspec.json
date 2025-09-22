@@ -44,6 +44,10 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "AWSSDK.S3": {
+              "target": "Package",
+              "version": "[4.0.7, )"
+            },
             "Google.Apis.Auth": {
               "target": "Package",
               "version": "[1.70.0, )"

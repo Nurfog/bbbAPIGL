@@ -14,39 +14,34 @@ public class MySqlCursoRepository : ICursoRepository
     {
         _connectionString = configuration.GetConnectionString("MySqlDb")!;
     }
-
-    /// <summary>
-    /// Obtiene la lista de correos de los alumnos para un curso específico.
-    /// </summary>
+    
     public async Task<List<string>> ObtenerCorreosPorCursoAsync(string idCurso)
     {
         var emails = new List<string>();
         await using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
 
-    
-        string sql = "SELECT alu.Email " +
-                        "FROM sige_sam_v3.detallecontrato as detcon inner join " +
-                        "alumnos as alu on detcon.idAlumno = alu.idAlumno " +
-                        "where detcon.Activo = 1 and " +
-                        "idCursoAbierto = "+ idCurso;
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Se usa un parámetro @IdCurso para evitar Inyección SQL
+        string sql = @"
+            SELECT alu.Email 
+            FROM sige_sam_v3.detallecontrato as detcon 
+            INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
+            WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCurso";
+        // --- FIN DE LA CORRECCIÓN ---
         
         await using var command = new MySqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@idCursoAbierto", idCurso);
+        command.Parameters.AddWithValue("@IdCurso", idCurso);
 
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            // Asume que la columna de email es la primera (índice 0)
             emails.Add(reader.GetString(0));
         }
 
         return emails;
     }
 
-    /// <summary>
-    /// Obtiene los detalles de la sala de BBB desde la tabla de cursos abiertos.
-    /// </summary>
     public async Task<CursoAbiertoSala?> ObtenerDatosSalaPorCursoAsync(int idCursoAbierto)
     {
         await using var connection = new MySqlConnection(_connectionString);
@@ -66,14 +61,14 @@ public class MySqlCursoRepository : ICursoRepository
             return new CursoAbiertoSala
             {
                 IdCursoAbierto = reader.GetInt32("idCursoAbierto"),
-                RoomId = reader.GetString("roomId"),
-                UrlSala = reader.GetString("urlSala"),
-                ClaveModerador = reader.GetString("claveModerador"),
-                ClaveEspectador = reader.GetString("claveEspectador"),
-                MeetingId = reader.GetString("meetingId"),
-                FriendlyId = reader.GetString("friendlyId"),
-                RecordId = reader.GetString("recordId"),
-                NombreSala = reader.GetString("nombreSala")
+                RoomId = reader.IsDBNull(reader.GetOrdinal("roomId")) ? null : reader.GetString("roomId"),
+                UrlSala = reader.IsDBNull(reader.GetOrdinal("urlSala")) ? null : reader.GetString("urlSala"),
+                ClaveModerador = reader.IsDBNull(reader.GetOrdinal("claveModerador")) ? null : reader.GetString("claveModerador"),
+                ClaveEspectador = reader.IsDBNull(reader.GetOrdinal("claveEspectador")) ? null : reader.GetString("claveEspectador"),
+                MeetingId = reader.IsDBNull(reader.GetOrdinal("meetingId")) ? null : reader.GetString("meetingId"),
+                FriendlyId = reader.IsDBNull(reader.GetOrdinal("friendlyId")) ? null : reader.GetString("friendlyId"),
+                RecordId = reader.IsDBNull(reader.GetOrdinal("recordId")) ? null : reader.GetString("recordId"),
+                NombreSala = reader.IsDBNull(reader.GetOrdinal("nombreSala")) ? null : reader.GetString("nombreSala")
             };
         }
 

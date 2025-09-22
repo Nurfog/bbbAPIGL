@@ -125,7 +125,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             return rowsAffected > 0;
         }
         catch (Exception ex)
-        {            
+        {
             await transaction.RollbackAsync();
             Console.WriteLine($"Error al eliminar la sala: {ex.Message}");
             throw;
@@ -135,7 +135,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
-        
+
         // Obtenemos solo los campos que necesitamos para la invitación
         string sql = "SELECT name, meeting_id, friendly_id FROM rooms WHERE id = @RoomId";
         await using var command = new NpgsqlCommand(sql, conn);
@@ -156,5 +156,33 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             };
         }
         return null;
+    }
+    public async Task<List<RecordingInfo>> ObtenerTodosLosRecordIdsPorRoomIdAsync(Guid roomId)
+    {
+        var recordings = new List<RecordingInfo>();
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        
+        // Quitamos el LIMIT 1 y seleccionamos también created_at
+        const string sql = @"
+            SELECT record_id, created_at 
+            FROM recordings 
+            WHERE room_id = @RoomId 
+            ORDER BY created_at DESC";
+        
+        await using var command = new NpgsqlCommand(sql, conn);
+        command.Parameters.AddWithValue("RoomId", roomId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            recordings.Add(new RecordingInfo
+            {
+                RecordId = reader.GetString(0),
+                CreatedAt = reader.GetDateTime(1)
+            });
+        }
+        
+        return recordings;
     }
 }

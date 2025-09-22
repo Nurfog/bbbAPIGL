@@ -5,13 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Google.Apis.Auth" Version="1.70.0"/>
-    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.69.0.3746"/>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7"/>
-    <PackageReference Include="MimeKit" Version="4.13.0"/>
-    <PackageReference Include="MySqlConnector" Version="2.4.0"/>
-    <PackageReference Include="Npgsql" Version="9.0.3"/>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4"/>
-    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.70.0.3833"/>
+    <PackageReference Include="AWSSDK.S3" Version="4.0.7" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
+    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.69.0.3746" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
+    <PackageReference Include="MimeKit" Version="4.13.0" />
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
+    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.70.0.3833" />
   </ItemGroup>
 </Project>

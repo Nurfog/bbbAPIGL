@@ -47,3 +47,6 @@
 /home/juan/bbbAPIGL/bin/Release/net9.0/linux-x64/System.CodeDom.dll
 /home/juan/bbbAPIGL/bin/Release/net9.0/linux-x64/System.Management.dll
 /home/juan/bbbAPIGL/bin/Release/net9.0/linux-x64/appsettings.Production.json
+/home/juan/bbbAPIGL/bin/Release/net9.0/linux-x64/AWSSDK.Core.dll
+/home/juan/bbbAPIGL/bin/Release/net9.0/linux-x64/AWSSDK.S3.dll
+/home/juan/bbbAPIGL/obj/Release/net9.0/linux-x64/bbbAPIGL.sourcelink.json

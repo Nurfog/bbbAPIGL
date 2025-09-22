@@ -9,4 +9,5 @@ public interface ISalaRepository
     Task<Guid?> GuardarSalaAsync(Sala sala, string userEmail);
     Task<bool> EliminarSalaAsync(Guid roomId);
     Task<Sala?> ObtenerSalaPorIdAsync(Guid roomId);
+    Task<List<RecordingInfo>> ObtenerTodosLosRecordIdsPorRoomIdAsync(Guid roomId);
 }
