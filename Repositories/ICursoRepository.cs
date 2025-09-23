@@ -9,4 +9,5 @@ public interface ICursoRepository
     Task<List<string>> ObtenerCorreosPorCursoAsync(string idCurso);
 
     Task<CursoAbiertoSala?> ObtenerDatosSalaPorCursoAsync(int idCursoAbierto);
+    Task<bool> DesasociarSalaDeCursosAsync(Guid roomId);
 }

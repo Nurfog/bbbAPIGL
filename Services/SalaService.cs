@@ -79,7 +79,17 @@ public class SalaService : ISalaService
 
     public async Task<bool> EliminarSalaAsync(Guid roomId)
     {
-        return await _salaRepository.EliminarSalaAsync(roomId);
+        // Primero, elimina la sala y todas sus dependencias de la base de datos de Greenlight (PostgreSQL).
+        var exitoPostgres = await _salaRepository.EliminarSalaAsync(roomId);
+
+        if (exitoPostgres)
+        {
+            // Si la eliminación en PostgreSQL fue exitosa, procede a desasociar la sala de
+            // cualquier curso en la base de datos MySQL para mantener la consistencia.
+            await _cursoRepository.DesasociarSalaDeCursosAsync(roomId);
+        }
+
+        return exitoPostgres;
     }
 
     public async Task<EnviarInvitacionCursoResponse> EnviarInvitacionesCursoAsync(EnviarInvitacionCursoRequest request)

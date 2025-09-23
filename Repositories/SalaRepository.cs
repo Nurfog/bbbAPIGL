@@ -100,8 +100,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
 
         try
         {
-            // 1. Eliminar primero las configuraciones asociadas en 'room_meeting_options'
-            //    Esto es necesario por las restricciones de clave foránea (foreign key).
+            // 1. Eliminar dependencias en 'room_meeting_options'
             var optionsQuery = "DELETE FROM room_meeting_options WHERE room_id = @RoomId";
             await using (var optionsCmd = new NpgsqlCommand(optionsQuery, conn))
             {
@@ -109,7 +108,47 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 await optionsCmd.ExecuteNonQueryAsync();
             }
 
-            // 2. Eliminar la sala principal en la tabla 'rooms'
+            // 2. Obtener los IDs de todas las grabaciones asociadas a la sala.
+            var recordingIds = new List<Guid>();
+            var getRecordingsQuery = "SELECT id FROM recordings WHERE room_id = @RoomId";
+            await using (var getRecordingsCmd = new NpgsqlCommand(getRecordingsQuery, conn))
+            {
+                getRecordingsCmd.Parameters.AddWithValue("RoomId", roomId);
+                await using var reader = await getRecordingsCmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    recordingIds.Add(reader.GetGuid(0));
+                }
+            }
+
+            // 3. Si existen grabaciones, eliminar sus formatos asociados para evitar errores de clave foránea.
+            if (recordingIds.Count > 0)
+            {
+                var formatsQuery = "DELETE FROM formats WHERE recording_id = ANY(@RecordingIds)";
+                await using (var formatsCmd = new NpgsqlCommand(formatsQuery, conn))
+                {
+                    formatsCmd.Parameters.AddWithValue("RecordingIds", recordingIds);
+                    await formatsCmd.ExecuteNonQueryAsync();
+                }
+            }
+
+            // 4. Ahora sí, eliminar las dependencias en 'recordings'.
+            var recordingsQuery = "DELETE FROM recordings WHERE room_id = @RoomId";
+            await using (var recordingsCmd = new NpgsqlCommand(recordingsQuery, conn))
+            {
+                recordingsCmd.Parameters.AddWithValue("RoomId", roomId);
+                await recordingsCmd.ExecuteNonQueryAsync();
+            }
+
+            // 5. Eliminar dependencias en 'shared_accesses' (accesos compartidos y roles de usuario en la sala para Greenlight v3)
+            var sharedAccessesQuery = "DELETE FROM shared_accesses WHERE room_id = @RoomId";
+            await using (var sharedAccessesCmd = new NpgsqlCommand(sharedAccessesQuery, conn))
+            {
+                sharedAccessesCmd.Parameters.AddWithValue("RoomId", roomId);
+                await sharedAccessesCmd.ExecuteNonQueryAsync();
+            }
+
+            // 6. Finalmente, eliminar la sala principal en la tabla 'rooms'
             var roomQuery = "DELETE FROM rooms WHERE id = @RoomId";
             int rowsAffected;
             await using (var roomCmd = new NpgsqlCommand(roomQuery, conn))
@@ -118,7 +157,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 rowsAffected = await roomCmd.ExecuteNonQueryAsync();
             }
 
-            // 3. Si todo fue bien, confirma la transacción
+            // 7. Si todo fue bien, confirma la transacción
             await transaction.CommitAsync();
 
             // Devuelve 'true' si se eliminó una fila (la sala existía), 'false' si no se eliminó nada.
@@ -127,7 +166,8 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            Console.WriteLine($"Error al eliminar la sala: {ex.Message}");
+            // Usar ToString() para obtener más detalles de la excepción, incluido el stack trace.
+            Console.WriteLine($"Error al eliminar la sala: {ex.ToString()}");
             throw;
         }
     }

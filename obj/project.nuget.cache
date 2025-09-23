@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "GHk0Gg8YynM=",
+  "dgSpecHash": "/MFMw/2rgLI=",
   "success": true,
-  "projectFilePath": "/home/juan/bbbAPIGL/bbbAPIGL.csproj",
+  "projectFilePath": "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj",
   "expectedPackageFiles": [
     "/home/juan/.nuget/packages/awssdk.core/4.0.0.26/awssdk.core.4.0.0.26.nupkg.sha512",
     "/home/juan/.nuget/packages/awssdk.s3/4.0.7/awssdk.s3.4.0.7.nupkg.sha512",

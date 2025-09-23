@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/juan/bbbAPIGL/bbbAPIGL.csproj": {}
+    "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj": {}
   },
   "projects": {
-    "/home/juan/bbbAPIGL/bbbAPIGL.csproj": {
+    "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/juan/bbbAPIGL/bbbAPIGL.csproj",
+        "projectUniqueName": "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj",
         "projectName": "bbbAPIGL",
-        "projectPath": "/home/juan/bbbAPIGL/bbbAPIGL.csproj",
+        "projectPath": "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj",
         "packagesPath": "/home/juan/.nuget/packages/",
-        "outputPath": "/home/juan/bbbAPIGL/obj/",
+        "outputPath": "/home/juan/Dev/bbbAPIGL/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/juan/.nuget/NuGet/NuGet.Config"

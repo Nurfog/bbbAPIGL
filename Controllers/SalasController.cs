@@ -37,19 +37,20 @@ public class SalasController : ControllerBase
         }
     }
 
-    [HttpDelete("eliminar")]
+    [HttpDelete("salas/{roomId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> EliminarSala([FromBody] EliminarSalaRequest request)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EliminarSala(Guid roomId)
     {
         try
         {
-            var exito = await _salaService.EliminarSalaAsync(request.RoomId);
+            var exito = await _salaService.EliminarSalaAsync(roomId);
             if (exito) return NoContent();
-            else return NotFound(new { error = $"No se encontró la sala con el ID: {request.RoomId}" });
+            return NotFound(new { error = $"No se encontró la sala con el ID: {roomId}" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado al eliminar la sala con ID: {RoomId}", request.RoomId);
+            _logger.LogError(ex, "Error inesperado al eliminar la sala con ID: {RoomId}", roomId);
             return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
         }
     }

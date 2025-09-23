@@ -74,4 +74,31 @@ public class MySqlCursoRepository : ICursoRepository
 
         return null;
     }
+
+    public async Task<bool> DesasociarSalaDeCursosAsync(Guid roomId)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        // Actualiza la tabla 'cursosabiertosbbb' para desvincular la sala,
+        // estableciendo los campos relacionados a NULL.
+        const string sql = @"
+            UPDATE cursosabiertosbbb 
+            SET 
+                roomId = NULL, 
+                urlSala = NULL, 
+                claveModerador = NULL, 
+                claveEspectador = NULL, 
+                meetingId = NULL, 
+                friendlyId = NULL,
+                recordId = NULL,
+                nombreSala = NULL
+            WHERE roomId = @RoomId";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@RoomId", roomId.ToString());
+
+        var rowsAffected = await command.ExecuteNonQueryAsync();
+        return rowsAffected > 0;
+    }
 }
