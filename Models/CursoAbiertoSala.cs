@@ -13,4 +13,7 @@ public class CursoAbiertoSala
     public string? FriendlyId { get; set; }
     public string? RecordId { get; set; }
     public string? NombreSala { get; set; }
+    public DateTime FechaInicio { get; set; }
+    public DateTime FechaTermino { get; set; }
+    public string? Dias { get; set; }
 }

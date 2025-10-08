@@ -37,22 +37,22 @@ public class SalasController : ControllerBase
         }
     }
 
-    [HttpDelete("salas/{roomId}")]
+    [HttpDelete("salas/{roomId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> EliminarSala(Guid roomId)
     {
-        try
-        {
-            var exito = await _salaService.EliminarSalaAsync(roomId);
-            if (exito) return NoContent();
+       try
+       {
+           var exito = await _salaService.EliminarSalaAsync(roomId);
+           if (exito) return NoContent();
             return NotFound(new { error = $"No se encontró la sala con el ID: {roomId}" });
-        }
-        catch (Exception ex)
-        {
+       }
+       catch (Exception ex)
+       {
             _logger.LogError(ex, "Error inesperado al eliminar la sala con ID: {RoomId}", roomId);
-            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
-        }
+           return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
+       }
     }
 
     [HttpPost("invitaciones")]
@@ -66,7 +66,7 @@ public class SalasController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return NotFound(new { error = ex.Message });
+            return BadRequest(new { error = ex.Message });
         }
     }
     [HttpGet("grabaciones/{idCursoAbierto}")]
@@ -81,6 +81,6 @@ public class SalasController : ControllerBase
             return NotFound(new { error = $"No se encontró un curso con ID: {idCursoAbierto}" });
         }
 
-        return Ok(response); // Devuelve la lista (puede estar vacía)
+        return Ok(response);
     }
 }

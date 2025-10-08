@@ -14,9 +14,6 @@ public class S3Service : IS3Service
         var settings = configuration.GetSection("S3Settings");
         _bucketName = settings["BucketName"]!;
         var region = RegionEndpoint.GetBySystemName(settings["Region"]!);
-        
-        // El SDK buscará automáticamente las credenciales del Rol de IAM 
-        // asociado a la instancia EC2 cuando se ejecute en producción.
         _s3Client = new AmazonS3Client(region);
     }
 
@@ -28,8 +25,7 @@ public class S3Service : IS3Service
             Key = key,
             Expires = DateTime.UtcNow.AddHours(1) // La URL será válida por 1 hora
         };
-        
-        // Esta función genera la URL firmada.
+
         string url = _s3Client.GetPreSignedURL(request);
         return Task.FromResult(url);
     }

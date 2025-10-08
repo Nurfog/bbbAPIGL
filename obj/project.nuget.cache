@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "FO83sm/b1Qs=",
+  "dgSpecHash": "mmJmw00FGSA=",
   "success": true,
   "projectFilePath": "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj",
   "expectedPackageFiles": [
@@ -27,7 +27,8 @@
     "/home/juan/.nuget/packages/swashbuckle.aspnetcore.swaggerui/9.0.4/swashbuckle.aspnetcore.swaggerui.9.0.4.nupkg.sha512",
     "/home/juan/.nuget/packages/system.codedom/7.0.0/system.codedom.7.0.0.nupkg.sha512",
     "/home/juan/.nuget/packages/system.management/7.0.2/system.management.7.0.2.nupkg.sha512",
-    "/home/juan/.nuget/packages/system.security.cryptography.pkcs/8.0.1/system.security.cryptography.pkcs.8.0.1.nupkg.sha512"
+    "/home/juan/.nuget/packages/system.security.cryptography.pkcs/8.0.1/system.security.cryptography.pkcs.8.0.1.nupkg.sha512",
+    "/home/juan/.nuget/packages/microsoft.aspnetcore.app.ref/9.0.9/microsoft.aspnetcore.app.ref.9.0.9.nupkg.sha512"
   ],
   "logs": []
 }

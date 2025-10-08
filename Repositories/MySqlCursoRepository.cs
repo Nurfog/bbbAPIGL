@@ -21,22 +21,20 @@ public class MySqlCursoRepository : ICursoRepository
         await using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Se usa un parámetro @IdCurso para evitar Inyección SQL
         string sql = @"
             SELECT alu.Email 
             FROM sige_sam_v3.detallecontrato as detcon 
             INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
             WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCurso";
-        // --- FIN DE LA CORRECCIÓN ---
         
         await using var command = new MySqlCommand(sql, connection);
+        
         command.Parameters.AddWithValue("@IdCurso", idCurso);
 
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            emails.Add(reader.GetString(0));
+            emails.Add(reader.GetString("Email"));
         }
 
         return emails;
@@ -48,8 +46,10 @@ public class MySqlCursoRepository : ICursoRepository
         await connection.OpenAsync();
         
         string sql = @"
-            SELECT idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, meetingId, friendlyId, recordId, nombreSala 
-            FROM cursosabiertosbbb 
+            SELECT 
+                idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, 
+                meetingId, friendlyId, recordId, nombreSala
+            FROM cursosabiertosbbb
             WHERE idCursoAbierto = @IdCursoAbierto";
         
         await using var command = new MySqlCommand(sql, connection);
@@ -68,7 +68,10 @@ public class MySqlCursoRepository : ICursoRepository
                 MeetingId = reader.IsDBNull(reader.GetOrdinal("meetingId")) ? null : reader.GetString("meetingId"),
                 FriendlyId = reader.IsDBNull(reader.GetOrdinal("friendlyId")) ? null : reader.GetString("friendlyId"),
                 RecordId = reader.IsDBNull(reader.GetOrdinal("recordId")) ? null : reader.GetString("recordId"),
-                NombreSala = reader.IsDBNull(reader.GetOrdinal("nombreSala")) ? null : reader.GetString("nombreSala")
+                NombreSala = reader.IsDBNull(reader.GetOrdinal("nombreSala")) ? null : reader.GetString("nombreSala"),
+                FechaInicio = reader.IsDBNull(reader.GetOrdinal("fechaInicio")) ? default : reader.GetDateTime("fechaInicio"),
+                FechaTermino = reader.IsDBNull(reader.GetOrdinal("fechaTermino")) ? default : reader.GetDateTime("fechaTermino"),
+                Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias")
             };
         }
 
@@ -80,8 +83,6 @@ public class MySqlCursoRepository : ICursoRepository
         await using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        // Actualiza la tabla 'cursosabiertosbbb' para desvincular la sala,
-        // estableciendo los campos relacionados a NULL.
         const string sql = @"
             UPDATE cursosabiertosbbb 
             SET 
