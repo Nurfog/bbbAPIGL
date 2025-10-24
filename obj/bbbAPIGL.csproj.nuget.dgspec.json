@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj": {}
+    "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj": {}
   },
   "projects": {
-    "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj": {
+    "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj",
+        "projectUniqueName": "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
         "projectName": "bbbAPIGL",
-        "projectPath": "/home/juan/Dev/bbbAPIGL/bbbAPIGL.csproj",
-        "packagesPath": "/home/juan/.nuget/packages/",
-        "outputPath": "/home/juan/Dev/bbbAPIGL/obj/",
+        "projectPath": "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
+        "packagesPath": "C:\\Users\\Juan\\.nuget\\packages\\",
+        "outputPath": "d:\\mint\\Dev\\bbbAPIGL\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/home/juan/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\Juan\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -100,12 +100,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.303/PortableRuntimeIdentifierGraph.json"
-        }
-      },
-      "runtimes": {
-        "linux-x64": {
-          "#import": []
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

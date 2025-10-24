@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b22a925e4204a67ec9960e7e93c03ea3a105f39e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4c7fbd325e78421b95d0221945c03e2c2c20c1ee")]
 [assembly: System.Reflection.AssemblyProductAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyTitleAttribute("bbbAPIGL")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
