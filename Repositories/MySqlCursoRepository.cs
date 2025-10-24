@@ -48,7 +48,10 @@ public class MySqlCursoRepository : ICursoRepository
         await connection.OpenAsync();
         
         string sql = @"
-            SELECT idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, meetingId, friendlyId, recordId, nombreSala 
+            SELECT 
+                idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, 
+                meetingId, friendlyId, recordId, nombreSala,
+                fechaInicio, fechaTermino, dias, horaInicio, horaTermino 
             FROM cursosabiertosbbb 
             WHERE idCursoAbierto = @IdCursoAbierto";
         
@@ -69,6 +72,12 @@ public class MySqlCursoRepository : ICursoRepository
                 FriendlyId = reader.IsDBNull(reader.GetOrdinal("friendlyId")) ? null : reader.GetString("friendlyId"),
                 RecordId = reader.IsDBNull(reader.GetOrdinal("recordId")) ? null : reader.GetString("recordId"),
                 NombreSala = reader.IsDBNull(reader.GetOrdinal("nombreSala")) ? null : reader.GetString("nombreSala")
+                , // Se añadió la coma aquí
+                FechaInicio = reader.GetDateTime("fechaInicio"),
+                FechaTermino = reader.GetDateTime("fechaTermino"),
+                Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias"),
+                HoraInicio = reader.GetTimeSpan("horaInicio"),
+                HoraTermino = reader.GetTimeSpan("horaTermino")
             };
         }
 

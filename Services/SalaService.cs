@@ -68,11 +68,12 @@ public class SalaService : ISalaService
         };
 
         // Si la petición incluye una lista de participantes, envía las invitaciones.
-        //if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
-        //{
-        //    // Se ejecuta en segundo plano para no hacer esperar al usuario
-        //    _ = Task.Run(() => _emailService.EnviarInvitacionCalendarioAsync(apiResponse, request.CorreosParticipantes));
-        //}
+        if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
+        {
+            // Se ejecuta en segundo plano para no hacer esperar al usuario
+            // Usamos el overload sin fechas para invitaciones no recurrentes al crear una sala.
+            _ = Task.Run(() => _emailService.EnviarInvitacionCalendarioAsync(apiResponse, request.CorreosParticipantes));
+        }
 
         return apiResponse;
     }
@@ -106,12 +107,30 @@ public class SalaService : ISalaService
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontraron alumnos para el curso.", CorreosEnviados = 0 };
         }
 
-        var asunto = $"Invitación a la sala: {sala.NombreSala}";
-        var cuerpoHtml = $"<p>Hola,</p><p>Has sido invitado a unirte a la sala virtual '<strong>{sala.NombreSala}</strong>'.</p>" +
-                         $"<p>Puedes unirte aqui: <a href='{sala.UrlSala}'>{sala.UrlSala}</a></p>" +
-                         $"<p>Clave de Espectador: <strong>{sala.ClaveEspectador}</strong></p>";
+        // Creamos un objeto con los detalles de la sala para enviar al servicio de calendario.
+        // Esto nos permite reutilizar la lógica existente.
+        var detallesSalaParaInvitacion = new CrearSalaResponse
+        {
+            // El RoomId no es estrictamente necesario para la invitación, pero lo incluimos por consistencia.
+            RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty,
+            FriendlyId = sala.NombreSala ?? string.Empty, // Usamos el nombre de la sala como identificador amigable en el evento.
+            UrlSala = sala.UrlSala ?? string.Empty,
+            ClaveEspectador = sala.ClaveEspectador ?? string.Empty,
+            // Los siguientes campos no son relevantes para el cuerpo de la invitación, pero los inicializamos.
+            ClaveModerador = string.Empty,
+            MeetingId = string.Empty,
+            RecordId = string.Empty
+        };
 
-        await _emailService.EnviarCorreosAsync(correos, asunto, cuerpoHtml);
+        // --- CORRECCIÓN ---
+        // La validación se mueve aquí para asegurar que 'sala' tiene los datos antes de usarlos.
+        if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias))
+        {
+            throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
+        }
+
+        // Se llama a la sobrecarga del servicio de email que maneja eventos recurrentes.
+        await _emailService.EnviarInvitacionCalendarioAsync(detallesSalaParaInvitacion, correos, sala.FechaInicio, sala.FechaTermino, sala.Dias, sala.HoraInicio, sala.HoraTermino);
 
         return new EnviarInvitacionCursoResponse
         {

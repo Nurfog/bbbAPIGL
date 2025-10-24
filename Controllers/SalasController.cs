@@ -68,6 +68,11 @@ public class SalasController : ControllerBase
         {
             return NotFound(new { error = ex.Message });
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al enviar invitaciones.");
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al enviar las invitaciones." });
+        }
     }
     [HttpGet("grabaciones/{idCursoAbierto}")]
     [ProducesResponseType(typeof(List<GrabacionDto>), StatusCodes.Status200OK)]
