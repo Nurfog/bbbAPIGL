@@ -9,4 +9,5 @@ public class CrearSalaResponse
     public string MeetingId { get; set; } = string.Empty;
     public string FriendlyId { get; set; } = string.Empty;
     public string RecordId { get; set; } = string.Empty;
+    public string? NombreSala { get; set; }
 }

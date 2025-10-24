@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj": {}
+    "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj": {}
   },
   "projects": {
-    "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj": {
+    "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
+        "projectUniqueName": "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
         "projectName": "bbbAPIGL",
-        "projectPath": "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
+        "projectPath": "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
         "packagesPath": "C:\\Users\\Juan\\.nuget\\packages\\",
-        "outputPath": "d:\\mint\\Dev\\bbbAPIGL\\obj\\",
+        "outputPath": "D:\\mint\\Dev\\bbbAPIGL\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Juan\\AppData\\Roaming\\NuGet\\NuGet.Config"

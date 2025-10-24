@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "LZtr0VWSSHo=",
+  "dgSpecHash": "zVQkP7b0C0M=",
   "success": true,
-  "projectFilePath": "d:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
+  "projectFilePath": "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Juan\\.nuget\\packages\\awssdk.core\\4.0.0.26\\awssdk.core.4.0.0.26.nupkg.sha512",
     "C:\\Users\\Juan\\.nuget\\packages\\awssdk.s3\\4.0.7\\awssdk.s3.4.0.7.nupkg.sha512",
@@ -29,5 +29,15 @@
     "C:\\Users\\Juan\\.nuget\\packages\\system.management\\7.0.2\\system.management.7.0.2.nupkg.sha512",
     "C:\\Users\\Juan\\.nuget\\packages\\system.security.cryptography.pkcs\\8.0.1\\system.security.cryptography.pkcs.8.0.1.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "Undefined",
+      "level": "Warning",
+      "message": "Problema al leer el archivo de caché D:\\mint\\Dev\\bbbAPIGL\\obj\\project.nuget.cache : '<' is an invalid start of a property name. Expected a '\"'. Path: $ | LineNumber: 2 | BytePositionInLine: 0.",
+      "projectPath": "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
+      "warningLevel": 1,
+      "filePath": "D:\\mint\\Dev\\bbbAPIGL\\bbbAPIGL.csproj",
+      "targetGraphs": []
+    }
+  ]
 }

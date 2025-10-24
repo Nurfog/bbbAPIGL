@@ -61,7 +61,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
     {
         var optionsData = new Dictionary<Guid, string>
         {
-            // --- LÍNEA CORREGIDA ---
             { new Guid("99216802-f366-4919-bc4e-925b04749790"), "false" },
             { new Guid("114d9563-9c30-41f0-b9ac-864f49e51881"), "true" },
             { new Guid("b9f32073-cef4-4450-927b-0262f35114ac"), "false" },
@@ -90,8 +89,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             await optionsCmd.ExecuteNonQueryAsync();
         }
     }
-    // Añade esta implementación al final de tu archivo SalaRepository.cs
-
+    
     public async Task<bool> EliminarSalaAsync(Guid roomId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -100,7 +98,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
 
         try
         {
-            // 1. Eliminar dependencias en 'room_meeting_options'
             var optionsQuery = "DELETE FROM room_meeting_options WHERE room_id = @RoomId";
             await using (var optionsCmd = new NpgsqlCommand(optionsQuery, conn))
             {
@@ -108,7 +105,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 await optionsCmd.ExecuteNonQueryAsync();
             }
 
-            // 2. Obtener los IDs de todas las grabaciones asociadas a la sala.
             var recordingIds = new List<Guid>();
             var getRecordingsQuery = "SELECT id FROM recordings WHERE room_id = @RoomId";
             await using (var getRecordingsCmd = new NpgsqlCommand(getRecordingsQuery, conn))
@@ -121,7 +117,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 }
             }
 
-            // 3. Si existen grabaciones, eliminar sus formatos asociados para evitar errores de clave foránea.
             if (recordingIds.Count > 0)
             {
                 var formatsQuery = "DELETE FROM formats WHERE recording_id = ANY(@RecordingIds)";
@@ -132,7 +127,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 }
             }
 
-            // 4. Ahora sí, eliminar las dependencias en 'recordings'.
             var recordingsQuery = "DELETE FROM recordings WHERE room_id = @RoomId";
             await using (var recordingsCmd = new NpgsqlCommand(recordingsQuery, conn))
             {
@@ -140,7 +134,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 await recordingsCmd.ExecuteNonQueryAsync();
             }
 
-            // 5. Eliminar dependencias en 'shared_accesses' (accesos compartidos y roles de usuario en la sala para Greenlight v3)
             var sharedAccessesQuery = "DELETE FROM shared_accesses WHERE room_id = @RoomId";
             await using (var sharedAccessesCmd = new NpgsqlCommand(sharedAccessesQuery, conn))
             {
@@ -148,7 +141,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 await sharedAccessesCmd.ExecuteNonQueryAsync();
             }
 
-            // 6. Finalmente, eliminar la sala principal en la tabla 'rooms'
             var roomQuery = "DELETE FROM rooms WHERE id = @RoomId";
             int rowsAffected;
             await using (var roomCmd = new NpgsqlCommand(roomQuery, conn))
@@ -157,16 +149,13 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 rowsAffected = await roomCmd.ExecuteNonQueryAsync();
             }
 
-            // 7. Si todo fue bien, confirma la transacción
             await transaction.CommitAsync();
 
-            // Devuelve 'true' si se eliminó una fila (la sala existía), 'false' si no se eliminó nada.
             return rowsAffected > 0;
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            // Usar ToString() para obtener más detalles de la excepción, incluido el stack trace.
             Console.WriteLine($"Error al eliminar la sala: {ex.ToString()}");
             throw;
         }
@@ -175,22 +164,19 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
-
-        // Obtenemos solo los campos que necesitamos para la invitación
         string sql = "SELECT name, meeting_id, friendly_id FROM rooms WHERE id = @RoomId";
+
         await using var command = new NpgsqlCommand(sql, conn);
         command.Parameters.AddWithValue("@RoomId", roomId);
 
         await using var reader = await command.ExecuteReaderAsync();
         if (await reader.ReadAsync())
         {
-            // Creamos un objeto Sala parcial con la información necesaria
             return new Sala
             {
                 Nombre = reader.GetString(0),
                 MeetingId = reader.GetString(1),
                 FriendlyId = reader.GetString(2),
-                // Los otros campos no son necesarios para este contexto
                 ClaveModerador = string.Empty,
                 ClaveEspectador = string.Empty
             };
@@ -203,7 +189,6 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
         
-        // Quitamos el LIMIT 1 y seleccionamos también created_at
         const string sql = @"
             SELECT record_id, created_at 
             FROM recordings 
