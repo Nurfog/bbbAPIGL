@@ -41,9 +41,13 @@ public class GoogleCalendarService : IEmailService
         List<string> correosParticipantes,
         DateTime fechaInicio, 
         DateTime fechaTermino, 
+<<<<<<< HEAD
         string diasSemana,
         TimeSpan horaInicio,
         TimeSpan horaTermino)
+=======
+        string diasSemana)
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
     {
         var service = await GetCalendarServiceAsync();
         var timeZone = _configuration["GoogleCalendarSettings:DefaultTimeZone"] ?? "America/Santiago";
@@ -53,6 +57,10 @@ public class GoogleCalendarService : IEmailService
         if (string.IsNullOrEmpty(diasRrule))
         {
             // No hacer nada si no hay días válidos para la recurrencia.
+<<<<<<< HEAD
+=======
+            // Opcionalmente, se podría lanzar una excepción o registrar un log.
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
             return;
         }
 
@@ -61,12 +69,17 @@ public class GoogleCalendarService : IEmailService
         
         // Crear el evento base y añadirle las propiedades de recurrencia
         var newEvent = CrearEventoBase(detallesSala, correosParticipantes, timeZone);
+<<<<<<< HEAD
 
         var eventStartDateTime = fechaInicio.Date.Add(horaInicio);
         var eventEndDateTime = fechaInicio.Date.Add(horaTermino);
 
         newEvent.Start = new EventDateTime { DateTimeDateTimeOffset = eventStartDateTime, TimeZone = timeZone };
         newEvent.End = new EventDateTime { DateTimeDateTimeOffset = eventEndDateTime, TimeZone = timeZone };
+=======
+        newEvent.Start = new EventDateTime { DateTimeDateTimeOffset = fechaInicio, TimeZone = timeZone };
+        newEvent.End = new EventDateTime { DateTimeDateTimeOffset = fechaInicio.AddHours(1), TimeZone = timeZone };
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
         newEvent.Recurrence = new List<string> { recurrenceRule };
 
         var request = service.Events.Insert(newEvent, "primary");
@@ -80,7 +93,11 @@ public class GoogleCalendarService : IEmailService
         return new Event
         {
             // Usamos NombreSala si está disponible; si no, FriendlyId como respaldo.
+<<<<<<< HEAD
             Summary = $"Clase: {detallesSala.FriendlyId ?? detallesSala.FriendlyId}",
+=======
+            Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}",
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
             Location = detallesSala.UrlSala,
             // Se añade la clave de moderador para que sea visible en la invitación.
             Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Moderador: {detallesSala.ClaveModerador}\nClave Espectador: {detallesSala.ClaveEspectador}",
@@ -130,7 +147,11 @@ public class GoogleCalendarService : IEmailService
             .Replace('/', '_')
             .Replace("=", "");
         
+<<<<<<< HEAD
         var message = new Message { Raw = rawMessage };
+=======
+        var message = new Message { Raw = rawMessage }; // El segundo parámetro es el userId, que para el servicio de cuenta es el email de la cuenta de servicio o el email del usuario a suplantar.
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
         await service.Users.Messages.Send(message, fromEmail).ExecuteAsync();
     }
 
@@ -149,6 +170,14 @@ public class GoogleCalendarService : IEmailService
         }
 
         GoogleCredential credential;
+<<<<<<< HEAD
+=======
+        var credentialsFilePath = settings["CredentialsFile"];
+        if (string.IsNullOrWhiteSpace(credentialsFilePath))
+        {
+            throw new ArgumentException("El archivo de credenciales (CredentialsFile) no está configurado correctamente.");
+        }
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
         await using (var stream = new FileStream(credentialsFilePath, FileMode.Open, FileAccess.Read))
         {
             credential = GoogleCredential.FromStream(stream)
@@ -177,6 +206,14 @@ public class GoogleCalendarService : IEmailService
         }
 
         GoogleCredential credential;
+<<<<<<< HEAD
+=======
+        var credentialsFilePath = settings["CredentialsFile"];
+        if (string.IsNullOrWhiteSpace(credentialsFilePath))
+        {
+            throw new ArgumentException("El archivo de credenciales (CredentialsFile) no está configurado correctamente.");
+        }
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
         await using (var stream = new FileStream(credentialsFilePath, FileMode.Open, FileAccess.Read))
         {
             credential = GoogleCredential.FromStream(stream)

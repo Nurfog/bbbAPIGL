@@ -48,9 +48,14 @@ public class MySqlCursoRepository : ICursoRepository
         string sql = @"
             SELECT 
                 idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, 
+<<<<<<< HEAD
                 meetingId, friendlyId, recordId, nombreSala,
                 fechaInicio, fechaTermino, dias, horaInicio, horaTermino 
             FROM cursosabiertosbbb 
+=======
+                meetingId, friendlyId, recordId, nombreSala
+            FROM cursosabiertosbbb
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
             WHERE idCursoAbierto = @IdCursoAbierto";
         
         await using var command = new MySqlCommand(sql, connection);
@@ -72,9 +77,13 @@ public class MySqlCursoRepository : ICursoRepository
                 NombreSala = reader.IsDBNull(reader.GetOrdinal("nombreSala")) ? null : reader.GetString("nombreSala"),
                 FechaInicio = reader.IsDBNull(reader.GetOrdinal("fechaInicio")) ? default : reader.GetDateTime("fechaInicio"),
                 FechaTermino = reader.IsDBNull(reader.GetOrdinal("fechaTermino")) ? default : reader.GetDateTime("fechaTermino"),
+<<<<<<< HEAD
                 Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias"),
                 HoraInicio = reader.IsDBNull(reader.GetOrdinal("horaInicio")) ? default : reader.GetTimeSpan("horaInicio"),
                 HoraTermino = reader.IsDBNull(reader.GetOrdinal("horaTermino")) ? default : reader.GetTimeSpan("horaTermino")
+=======
+                Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias")
+>>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
             };
         }
 
