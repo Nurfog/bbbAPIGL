@@ -64,16 +64,11 @@ public class SalaService : ISalaService
             RecordId = recordId
         };
 
-<<<<<<< HEAD
         // Si la petición incluye una lista de participantes, envía las invitaciones.
         if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
         {
             // Se ejecuta en segundo plano para no hacer esperar al usuario
             // Usamos el overload sin fechas para invitaciones no recurrentes al crear una sala.
-=======
-        if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
-        {
->>>>>>> bc0cedfcf1b28861c8327da4f8ee316f08aecbf9
             _ = Task.Run(() => _emailService.EnviarInvitacionCalendarioAsync(apiResponse, request.CorreosParticipantes));
         }
 
