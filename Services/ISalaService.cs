@@ -8,4 +8,5 @@ public interface ISalaService
     Task<bool> EliminarSalaAsync(Guid roomId);
     Task<EnviarInvitacionCursoResponse> EnviarInvitacionesCursoAsync(EnviarInvitacionCursoRequest request);
     Task<List<GrabacionDto>?> ObtenerUrlsGrabacionesAsync(int idCursoAbierto);
+    Task<EnviarInvitacionCursoResponse> EnviarInvitacionIndividualAsync(EnviarInvitacionIndividualRequest request);
 }

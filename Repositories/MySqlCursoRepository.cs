@@ -73,8 +73,8 @@ public class MySqlCursoRepository : ICursoRepository
                 FechaInicio = reader.IsDBNull(reader.GetOrdinal("fechaInicio")) ? default : reader.GetDateTime("fechaInicio"),
                 FechaTermino = reader.IsDBNull(reader.GetOrdinal("fechaTermino")) ? default : reader.GetDateTime("fechaTermino"),
                 Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias"),
-                HoraInicio = reader.IsDBNull(reader.GetOrdinal("horaInicio")) ? default : reader.GetTimeSpan("horaInicio"),
-                HoraTermino = reader.IsDBNull(reader.GetOrdinal("horaTermino")) ? default : reader.GetTimeSpan("horaTermino")
+                HoraInicio = reader.IsDBNull(reader.GetOrdinal("horaInicio")) ? default : reader.GetDateTime("horaInicio"),
+                HoraTermino = reader.IsDBNull(reader.GetOrdinal("horaTermino")) ? default : reader.GetDateTime("horaTermino")
             };
         }
 
@@ -104,5 +104,25 @@ public class MySqlCursoRepository : ICursoRepository
 
         var rowsAffected = await command.ExecuteNonQueryAsync();
         return rowsAffected > 0;
+    }
+
+    public async Task<string?> ObtenerCorreoPorAlumnoAsync(string idAlumno, int idCursoAbierto)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        string sql = @"
+            SELECT alu.Email 
+            FROM sige_sam_v3.detallecontrato as detcon 
+            INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
+            WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCursoAbierto AND alu.idAlumno = @IdAlumno";
+    
+        await using var command = new MySqlCommand(sql, connection);
+    
+        command.Parameters.AddWithValue("@IdCursoAbierto", idCursoAbierto);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+        var result = await command.ExecuteScalarAsync();
+        return result?.ToString();
     }
 }

@@ -2,6 +2,7 @@ using bbbAPIGL.DTOs;
 using bbbAPIGL.Models;
 using bbbAPIGL.Repositories;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Text;
@@ -15,17 +16,20 @@ public class SalaService : ISalaService
     private readonly ICursoRepository _cursoRepository;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
+    private readonly ILogger<SalaService> _logger;
 
     public SalaService(
         ISalaRepository salaRepository,
         ICursoRepository cursoRepository,
         IConfiguration configuration,
-        IEmailService emailService)
+        IEmailService emailService,
+        ILogger<SalaService> logger)
     {
         _salaRepository = salaRepository;
         _cursoRepository = cursoRepository;
         _configuration = configuration;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<CrearSalaResponse> CrearNuevaSalaAsync(CrearSalaRequest request)
@@ -68,8 +72,17 @@ public class SalaService : ISalaService
         if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
         {
             // Se ejecuta en segundo plano para no hacer esperar al usuario
-            // Usamos el overload sin fechas para invitaciones no recurrentes al crear una sala.
-            _ = Task.Run(() => _emailService.EnviarInvitacionCalendarioAsync(apiResponse, request.CorreosParticipantes));
+            _ = Task.Run(async () => {
+                try
+                {
+                    // Usamos el overload sin fechas para invitaciones no recurrentes al crear una sala.
+                    await _emailService.EnviarInvitacionCalendarioAsync(apiResponse, request.CorreosParticipantes);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al enviar invitación de calendario en segundo plano durante la creación de la sala.");
+                }
+            });
         }
 
         return apiResponse;
@@ -118,7 +131,16 @@ public class SalaService : ISalaService
             throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
         }
 
-        await _emailService.EnviarInvitacionCalendarioAsync(detallesSalaParaInvitacion, correos, sala.FechaInicio, sala.FechaTermino, sala.Dias);
+        try
+        {
+            await _emailService.EnviarInvitacionCalendarioAsync(detallesSalaParaInvitacion, correos, sala.FechaInicio, sala.FechaTermino, sala.Dias, sala.HoraInicio, sala.HoraTermino);
+        }
+        catch (Exception ex)
+        {
+            // Aquí podrías loggear el error ex para tener más detalles.
+            // Por ejemplo: _logger.LogError(ex, "Error al enviar invitaciones de calendario.");
+            throw new InvalidOperationException("Error al procesar la invitación con el servicio de calendario. Verifica la configuración y los permisos.", ex);
+        }
 
         return new EnviarInvitacionCursoResponse
         {
@@ -172,5 +194,53 @@ public class SalaService : ISalaService
         }).ToList();
 
         return grabacionesDto;
+    }
+
+    public async Task<EnviarInvitacionCursoResponse> EnviarInvitacionIndividualAsync(EnviarInvitacionIndividualRequest request)
+    {
+        var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+        if (sala == null)
+        {
+            throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
+        }
+
+        var correo = await _cursoRepository.ObtenerCorreoPorAlumnoAsync(request.IdAlumno, request.IdCursoAbierto);
+        if (string.IsNullOrEmpty(correo))
+        {
+            return new EnviarInvitacionCursoResponse { Mensaje = "No se encontró un alumno con el ID especificado para este curso.", CorreosEnviados = 0 };
+        }
+
+        var detallesSalaParaInvitacion = new CrearSalaResponse
+        {
+            RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty,
+            NombreSala = sala.NombreSala,
+            FriendlyId = sala.FriendlyId ?? string.Empty,
+            UrlSala = sala.UrlSala ?? string.Empty,
+            ClaveEspectador = sala.ClaveEspectador ?? string.Empty,
+            ClaveModerador = sala.ClaveModerador ?? string.Empty,
+            MeetingId = sala.MeetingId ?? string.Empty,
+            RecordId = string.Empty
+        };
+
+        if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias))
+        {
+            throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
+        }
+
+        try
+        {
+            await _emailService.EnviarInvitacionCalendarioAsync(detallesSalaParaInvitacion, new List<string> { correo }, sala.FechaInicio, sala.FechaTermino, sala.Dias, sala.HoraInicio, sala.HoraTermino);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al procesar la invitación individual con el servicio de calendario.");
+            throw new InvalidOperationException("Error al procesar la invitación con el servicio de calendario. Verifica la configuración y los permisos.", ex);
+        }
+
+        return new EnviarInvitacionCursoResponse
+        {
+            Mensaje = "Invitación enviada exitosamente.",
+            CorreosEnviados = 1
+        };
     }
 }

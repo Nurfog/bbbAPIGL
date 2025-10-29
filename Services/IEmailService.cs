@@ -16,7 +16,7 @@ public interface IEmailService
         DateTime fechaInicio, 
         DateTime fechaTermino, 
         string diasSemana,
-        TimeSpan horaInicio,
-        TimeSpan horaTermino);
+        DateTime horaInicio,
+        DateTime horaTermino);
     Task EnviarCorreosAsync(List<string> destinatarios, string asunto, string cuerpoHtml);
 }

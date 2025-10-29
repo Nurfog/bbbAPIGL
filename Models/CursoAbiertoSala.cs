@@ -16,6 +16,6 @@ public class CursoAbiertoSala
     public DateTime FechaInicio { get; set; }
     public DateTime FechaTermino { get; set; }
     public string? Dias { get; set; }
-    public TimeSpan HoraInicio { get; set; }
-    public TimeSpan HoraTermino { get; set; }
+    public DateTime HoraInicio { get; set; }
+    public DateTime HoraTermino { get; set; }
 }

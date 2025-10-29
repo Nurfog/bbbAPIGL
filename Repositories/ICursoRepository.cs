@@ -8,6 +8,8 @@ public interface ICursoRepository
 {
     Task<List<string>> ObtenerCorreosPorCursoAsync(string idCurso);
 
+    Task<string?> ObtenerCorreoPorAlumnoAsync(string idAlumno, int idCursoAbierto);
+
     Task<CursoAbiertoSala?> ObtenerDatosSalaPorCursoAsync(int idCursoAbierto);
     Task<bool> DesasociarSalaDeCursosAsync(Guid roomId);
 }

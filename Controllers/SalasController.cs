@@ -74,6 +74,27 @@ public class SalasController : ControllerBase
             return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al enviar las invitaciones." });
         }
     }
+
+    [HttpPost("invitaciones/individual")]
+    [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> EnviarInvitacionIndividual([FromBody] EnviarInvitacionIndividualRequest request)
+    {
+        try
+        {
+            var response = await _salaService.EnviarInvitacionIndividualAsync(request);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al enviar invitación individual.");
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al enviar la invitación." });
+        }
+    }
+
     [HttpGet("grabaciones/{idCursoAbierto}")]
     [ProducesResponseType(typeof(List<GrabacionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
