@@ -20,10 +20,17 @@ public class SalasController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("salas")]
+    [HttpPost("salas/{nombre}/{emailCreador}")]
     [ProducesResponseType(typeof(CrearSalaResponse), StatusCodes.Status201Created)]
-    public async Task<IActionResult> CrearSala([FromBody] CrearSalaRequest request)
+    public async Task<IActionResult> CrearSala([FromRoute] string nombre, [FromRoute] string emailCreador, [FromQuery] string? correosParticipantes = null)
     {
+        var request = new CrearSalaRequest
+        {
+            Nombre = nombre,
+            EmailCreador = emailCreador,
+            CorreosParticipantes = correosParticipantes?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+        };
+
         if (!ModelState.IsValid) return BadRequest(ModelState);
         try
         {
@@ -55,10 +62,11 @@ public class SalasController : ControllerBase
        }
     }
 
-    [HttpPost("invitaciones")]
+    [HttpPost("invitaciones/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> EnviarInvitaciones([FromBody] EnviarInvitacionCursoRequest request)
+    public async Task<IActionResult> EnviarInvitaciones([FromRoute] int idCursoAbierto)
     {
+        var request = new EnviarInvitacionCursoRequest { IdCursoAbierto = idCursoAbierto };
         try
         {
             var response = await _salaService.EnviarInvitacionesCursoAsync(request);
@@ -75,10 +83,11 @@ public class SalasController : ControllerBase
         }
     }
 
-    [HttpPost("invitaciones/individual")]
+    [HttpPost("invitaciones/individual/{idAlumno}/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> EnviarInvitacionIndividual([FromBody] EnviarInvitacionIndividualRequest request)
+    public async Task<IActionResult> EnviarInvitacionIndividual([FromRoute] string idAlumno, [FromRoute] int idCursoAbierto)
     {
+        var request = new EnviarInvitacionIndividualRequest { IdAlumno = idAlumno, IdCursoAbierto = idCursoAbierto };
         try
         {
             var response = await _salaService.EnviarInvitacionIndividualAsync(request);
@@ -92,6 +101,27 @@ public class SalasController : ControllerBase
         {
             _logger.LogError(ex, "Error inesperado al enviar invitación individual.");
             return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al enviar la invitación." });
+        }
+    }
+
+    [HttpPut("invitaciones/{idCursoAbierto:int}")]
+    [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ActualizarInvitaciones([FromRoute] int idCursoAbierto, [FromBody] ActualizarEventoCalendarioRequest requestBody)
+    {
+        requestBody.IdCursoAbierto = idCursoAbierto;
+        try
+        {
+            var response = await _salaService.ActualizarInvitacionesCursoAsync(requestBody);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al actualizar invitaciones.");
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al actualizar las invitaciones." });
         }
     }
 

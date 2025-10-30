@@ -22,7 +22,7 @@ public class GoogleCalendarService : IEmailService
         _logger = logger;
     }
 
-    public async Task EnviarInvitacionCalendarioAsync(CrearSalaResponse detallesSala, List<string> correosParticipantes)
+    public async Task<string?> EnviarInvitacionCalendarioAsync(CrearSalaResponse detallesSala, List<string> correosParticipantes)
     {
         try
         {
@@ -41,6 +41,7 @@ public class GoogleCalendarService : IEmailService
 
             var createdEvent = await request.ExecuteAsync();
             _logger.LogInformation("Evento de calendario (no recurrente) creado exitosamente con ID: {eventId}", createdEvent.Id);
+            return createdEvent.Id;
         }
         catch (Exception ex)
         {
@@ -49,7 +50,7 @@ public class GoogleCalendarService : IEmailService
         }
     }
 
-    public async Task EnviarInvitacionCalendarioAsync(
+    public async Task<string?> EnviarInvitacionCalendarioAsync(
         CrearSalaResponse detallesSala, 
         List<string> correosParticipantes,
         DateTime fechaInicio, 
@@ -68,7 +69,7 @@ public class GoogleCalendarService : IEmailService
             if (string.IsNullOrEmpty(diasRrule))
             {
                 _logger.LogWarning("No se enviará invitación porque no se proporcionaron días válidos para la recurrencia ('{diasSemana}').", diasSemana);
-                return;
+                return null;
             }
 
             var recurrenceRule = $"RRULE:FREQ=WEEKLY;UNTIL={fechaTermino:yyyyMMddTHHMMssZ};BYDAY={diasRrule}";
@@ -89,10 +90,29 @@ public class GoogleCalendarService : IEmailService
 
             var createdEvent = await request.ExecuteAsync();
             _logger.LogInformation("Evento de calendario recurrente creado exitosamente con ID: {eventId}", createdEvent.Id);
+            return createdEvent.Id;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al enviar la invitación de calendario recurrente.");
+            throw;
+        }
+    }
+
+    public async Task EliminarEventoCalendarioAsync(string eventoId)
+    {
+        try
+        {
+            _logger.LogInformation("Eliminando evento de calendario con ID: {eventoId}", eventoId);
+            var service = await GetCalendarServiceAsync();
+            var request = service.Events.Delete("primary", eventoId);
+            request.SendNotifications = true;
+            await request.ExecuteAsync();
+            _logger.LogInformation("Evento de calendario eliminado exitosamente.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al eliminar el evento de calendario.");
             throw;
         }
     }
@@ -232,5 +252,52 @@ public class GoogleCalendarService : IEmailService
             HttpClientInitializer = credential,
             ApplicationName = "bbbAPIGL API"
         });
+    }
+
+    public async Task<string?> ActualizarEventoCalendarioAsync(string eventoId, CrearSalaResponse detallesSala, List<string> correosParticipantes, DateTime fechaInicio, DateTime fechaTermino, string diasSemana, DateTime horaInicio, DateTime horaTermino)
+    {
+        try
+        {
+            _logger.LogInformation("Actualizando invitación de calendario recurrente para la sala {salaNombre}.", detallesSala.NombreSala);
+            var service = await GetCalendarServiceAsync();
+            var timeZone = _configuration["GoogleCalendarSettings:DefaultTimeZone"] ?? "America/Santiago";
+
+            var diasRrule = ConvertirDiasParaRRule(diasSemana);
+            if (string.IsNullOrEmpty(diasRrule))
+            {
+                _logger.LogWarning("No se actualizará la invitación porque no se proporcionaron días válidos para la recurrencia ('{diasSemana}').", diasSemana);
+                return null;
+            }
+
+            var recurrenceRule = $"RRULE:FREQ=WEEKLY;UNTIL={fechaTermino:yyyyMMddTHHMMssZ};BYDAY={diasRrule}";
+
+            var existingEvent = await service.Events.Get("primary", eventoId).ExecuteAsync();
+
+            existingEvent.Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}";
+            existingEvent.Location = detallesSala.UrlSala;
+            existingEvent.Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Moderador: {detallesSala.ClaveModerador}\nClave Espectador: {detallesSala.ClaveEspectador}";
+            existingEvent.Attendees = correosParticipantes.Select(email => new EventAttendee { Email = email }).ToList();
+            
+            var eventStartDateTime = fechaInicio.Date.Add(horaInicio.TimeOfDay);
+            var eventEndDateTime = fechaInicio.Date.Add(horaTermino.TimeOfDay);
+
+            existingEvent.Start = new EventDateTime { DateTimeDateTimeOffset = eventStartDateTime, TimeZone = timeZone };
+            existingEvent.End = new EventDateTime { DateTimeDateTimeOffset = eventEndDateTime, TimeZone = timeZone };
+            existingEvent.Recurrence = new List<string> { recurrenceRule };
+
+            _logger.LogDebug("Actualizando evento recurrente en calendario: Summary='{summary}', Start='{start}', End='{end}', Recurrence='{recurrence}'", existingEvent.Summary, existingEvent.Start.DateTimeDateTimeOffset, existingEvent.End.DateTimeDateTimeOffset, existingEvent.Recurrence.FirstOrDefault());
+
+            var request = service.Events.Update(existingEvent, "primary", eventoId);
+            request.SendNotifications = true;
+
+            var updatedEvent = await request.ExecuteAsync();
+            _logger.LogInformation("Evento de calendario recurrente actualizado exitosamente con ID: {eventId}", updatedEvent.Id);
+            return updatedEvent.Id;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al actualizar la invitación de calendario recurrente.");
+            throw;
+        }
     }
 }

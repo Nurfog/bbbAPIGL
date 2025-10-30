@@ -50,6 +50,29 @@ public class SalaService : ISalaService
             ClaveEspectador = claveEspectador
         };
 
+        // Si la petición incluye una lista de participantes, envía las invitaciones y guarda el ID del evento.
+        if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
+        {
+            var apiResponseForCalendar = new CrearSalaResponse
+            {
+                NombreSala = nuevaSala.Nombre,
+                UrlSala = $"{publicUrl}/rooms/{friendlyId}/join",
+                ClaveModerador = claveModerador,
+                ClaveEspectador = claveEspectador,
+                MeetingId = meetingId,
+                FriendlyId = friendlyId
+            };
+            try
+            {
+                nuevaSala.IdCalendario = await _emailService.EnviarInvitacionCalendarioAsync(apiResponseForCalendar, request.CorreosParticipantes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al enviar invitación de calendario durante la creación de la sala. La sala se creará sin evento de calendario.");
+                nuevaSala.IdCalendario = null; // Asegurarse de que no se guarde un ID parcial o erróneo.
+            }
+        }
+
         Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
 
         if (newRoomId is null)
@@ -68,28 +91,25 @@ public class SalaService : ISalaService
             RecordId = recordId
         };
 
-        // Si la petición incluye una lista de participantes, envía las invitaciones.
-        if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
-        {
-            // Se ejecuta en segundo plano para no hacer esperar al usuario
-            _ = Task.Run(async () => {
-                try
-                {
-                    // Usamos el overload sin fechas para invitaciones no recurrentes al crear una sala.
-                    await _emailService.EnviarInvitacionCalendarioAsync(apiResponse, request.CorreosParticipantes);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error al enviar invitación de calendario en segundo plano durante la creación de la sala.");
-                }
-            });
-        }
-
         return apiResponse;
     }
 
     public async Task<bool> EliminarSalaAsync(Guid roomId)
     {
+        var idCalendario = await _salaRepository.ObtenerIdCalendarioPorSalaIdAsync(roomId);
+
+        if (!string.IsNullOrEmpty(idCalendario))
+        {
+            try
+            {
+                await _emailService.EliminarEventoCalendarioAsync(idCalendario);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al eliminar el evento de calendario con ID {IdCalendario} para la sala {RoomId}. La eliminación de la sala continuará.", idCalendario, roomId);
+            }
+        }
+
         var exitoPostgres = await _salaRepository.EliminarSalaAsync(roomId);
 
         if (exitoPostgres)
@@ -241,6 +261,65 @@ public class SalaService : ISalaService
         {
             Mensaje = "Invitación enviada exitosamente.",
             CorreosEnviados = 1
+        };
+    }
+
+    public async Task<EnviarInvitacionCursoResponse> ActualizarInvitacionesCursoAsync(ActualizarEventoCalendarioRequest request)
+    {
+        var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+        if (sala == null)
+        {
+            throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
+        }
+
+        if (string.IsNullOrEmpty(sala.IdCalendario))
+        {
+            throw new InvalidOperationException("La sala no tiene un evento de calendario asociado.");
+        }
+
+        var correos = request.CorreosParticipantes ?? await _cursoRepository.ObtenerCorreosPorCursoAsync(request.IdCursoAbierto.ToString());
+        if (correos == null || !correos.Any())
+        {
+            return new EnviarInvitacionCursoResponse { Mensaje = "No se encontraron alumnos para el curso.", CorreosEnviados = 0 };
+        }
+
+        var detallesSalaParaInvitacion = new CrearSalaResponse
+        {
+            RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty,
+            NombreSala = sala.NombreSala,
+            FriendlyId = sala.FriendlyId ?? string.Empty,
+            UrlSala = sala.UrlSala ?? string.Empty,
+            ClaveEspectador = sala.ClaveEspectador ?? string.Empty,
+            ClaveModerador = sala.ClaveModerador ?? string.Empty,
+            MeetingId = sala.MeetingId ?? string.Empty,
+            RecordId = string.Empty
+        };
+
+        var fechaInicio = request.FechaInicio ?? sala.FechaInicio;
+        var fechaTermino = request.FechaTermino ?? sala.FechaTermino;
+        var dias = request.DiasSemana ?? sala.Dias;
+        var horaInicio = request.HoraInicio ?? sala.HoraInicio;
+        var horaTermino = request.HoraTermino ?? sala.HoraTermino;
+
+        if (fechaInicio == default || fechaTermino == default || string.IsNullOrEmpty(dias))
+        {
+            throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
+        }
+
+        try
+        {
+            await _emailService.ActualizarEventoCalendarioAsync(sala.IdCalendario, detallesSalaParaInvitacion, correos, fechaInicio, fechaTermino, dias, horaInicio, horaTermino);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al procesar la actualización de la invitación con el servicio de calendario.");
+            throw new InvalidOperationException("Error al procesar la actualización de la invitación con el servicio de calendario. Verifica la configuración y los permisos.", ex);
+        }
+
+        return new EnviarInvitacionCursoResponse
+        {
+            Mensaje = "Invitaciones actualizadas exitosamente.",
+            CorreosEnviados = correos.Count
         };
     }
 }

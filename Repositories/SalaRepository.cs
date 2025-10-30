@@ -29,8 +29,8 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             }
 
             var roomQuery = @"
-                INSERT INTO rooms (name, meeting_id, user_id, friendly_id, created_at, updated_at) 
-                VALUES (@name, @meeting_id, @user_id, @friendly_id, @created_at, @updated_at)
+                INSERT INTO rooms (name, meeting_id, user_id, friendly_id, calendar_event_id, created_at, updated_at) 
+                VALUES (@name, @meeting_id, @user_id, @friendly_id, @calendar_event_id, @created_at, @updated_at)
                 RETURNING id;";
 
             Guid newRoomId;
@@ -40,6 +40,7 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 roomCmd.Parameters.AddWithValue("meeting_id", sala.MeetingId);
                 roomCmd.Parameters.AddWithValue("user_id", creatorId.Value);
                 roomCmd.Parameters.AddWithValue("friendly_id", sala.FriendlyId);
+                roomCmd.Parameters.AddWithValue("calendar_event_id", (object)sala.IdCalendario ?? DBNull.Value);
                 roomCmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
                 roomCmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
                 newRoomId = (Guid)(await roomCmd.ExecuteScalarAsync())!;
@@ -208,6 +209,36 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             });
         }
         
-        return recordings;
-    }
-}
+                return recordings;
+        
+            }
+        
+        
+        
+            public async Task<string?> ObtenerIdCalendarioPorSalaIdAsync(Guid roomId)
+        
+            {
+        
+                await using var conn = new NpgsqlConnection(_connectionString);
+        
+                await conn.OpenAsync();
+        
+                string sql = "SELECT calendar_event_id FROM rooms WHERE id = @RoomId";
+        
+        
+        
+                await using var command = new NpgsqlCommand(sql, conn);
+        
+                command.Parameters.AddWithValue("@RoomId", roomId);
+        
+        
+        
+                var result = await command.ExecuteScalarAsync();
+        
+                return result is not DBNull ? result?.ToString() : null;
+        
+            }
+        
+        }
+        
+        
