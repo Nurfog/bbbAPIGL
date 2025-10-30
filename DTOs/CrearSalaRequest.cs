@@ -11,6 +11,4 @@ public class CrearSalaRequest
     [Required]
     [EmailAddress]
     public string EmailCreador { get; set; } = string.Empty;
-
-    public List<string>? CorreosParticipantes { get; set; }
 }

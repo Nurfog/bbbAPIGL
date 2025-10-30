@@ -86,7 +86,7 @@ Configura la inyección de dependencias, registrando los servicios y repositorio
 ### Ejecución del Proyecto
 
 1.  Asegúrese de haber configurado `appsettings.json` y `google-credentials.json` como se describe en la sección de Configuración.
-2.  Abra una terminal en la raíz del proyecto (`d:\mint\Dev\bbbAPIGL\`).
+2.  Abra una terminal en la raíz del proyecto.
 3.  Ejecute el siguiente comando para construir y correr la aplicación:
     ```bash
     dotnet run
@@ -110,11 +110,7 @@ Crea una nueva sala de reuniones virtual y, opcionalmente, envía invitaciones d
     ```json
     {
         "nombre": "Nombre de la Sala de Clase",
-        "emailCreador": "creador@example.com",
-        "correosParticipantes": [
-            "alumno1@example.com",
-            "alumno2@example.com"
-        ]
+        "emailCreador": "creador@example.com"
     }
     ```
 -   **Success Response**: `201 Created`
