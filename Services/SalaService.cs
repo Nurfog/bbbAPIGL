@@ -113,7 +113,7 @@ public class SalaService : ISalaService
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontraron alumnos para el curso.", CorreosEnviados = 0 };
         }
 
-        var detallesSalaParaInvitacion = new CrearSalaResponse
+        var detallesSalaResponse = new CrearSalaResponse
         {
             RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty, 
             NombreSala = sala.NombreSala,
@@ -153,7 +153,7 @@ public class SalaService : ISalaService
                 {
                     _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", alumno.IdAlumno);
                     var idEventoCalendario = await _emailService.EnviarInvitacionCalendarioAsync(
-                        detallesSala, 
+                        detallesSalaResponse, 
                         new List<string> { alumno.Email }, 
                         sala.FechaInicio, 
                         sala.FechaTermino, 
@@ -167,7 +167,7 @@ public class SalaService : ISalaService
                         {
                             IdCursoAbiertoBbb = request.IdCursoAbierto,
                             IdAlumno = alumno.IdAlumno,
-                            Url = detallesSala.UrlSala,
+                            Url = detallesSalaResponse.UrlSala,
                             IdCalendario = idEventoCalendario,
                             FechaCreacion = DateTime.UtcNow
                         };
@@ -258,7 +258,7 @@ public class SalaService : ISalaService
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontró un alumno con el ID especificado para este curso.", CorreosEnviados = 0 };
         }
 
-        var detallesSalaParaInvitacion = new CrearSalaResponse
+        var detallesSalaResponse = new CrearSalaResponse
         {
             RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty,
             NombreSala = sala.NombreSala,
@@ -295,7 +295,7 @@ public class SalaService : ISalaService
             {
                 _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", request.IdAlumno);
                 var idEventoCalendario = await _emailService.EnviarInvitacionCalendarioAsync(
-                    detallesSala, 
+                    detallesSalaResponse, 
                     new List<string> { correoAlumno }, 
                     sala.FechaInicio, 
                     sala.FechaTermino, 
@@ -309,7 +309,7 @@ public class SalaService : ISalaService
                     {
                         IdCursoAbiertoBbb = request.IdCursoAbierto,
                         IdAlumno = request.IdAlumno,
-                        Url = detallesSala.UrlSala,
+                        Url = detallesSalaResponse.UrlSala,
                         IdCalendario = idEventoCalendario,
                         FechaCreacion = DateTime.UtcNow
                     };
@@ -354,7 +354,7 @@ public class SalaService : ISalaService
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontraron alumnos para el curso.", CorreosEnviados = 0 };
         }
 
-        var detallesSalaParaInvitacion = new CrearSalaResponse
+        var detallesSalaResponse = new CrearSalaResponse
         {
             RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty,
             NombreSala = sala.NombreSala,
@@ -379,7 +379,7 @@ public class SalaService : ISalaService
 
         try
         {
-            await _emailService.ActualizarEventoCalendarioAsync(sala.IdCalendario, detallesSalaParaInvitacion, correos, fechaInicio, fechaTermino, dias, horaInicio, horaTermino);
+            await _emailService.ActualizarEventoCalendarioAsync(sala.IdCalendario, detallesSalaResponse, correos, fechaInicio, fechaTermino, dias, horaInicio, horaTermino);
         }
         catch (Exception ex)
         {

@@ -43,7 +43,12 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 roomCmd.Parameters.AddWithValue("calendar_event_id", (object)sala.IdCalendario ?? DBNull.Value);
                 roomCmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
                 roomCmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
-                newRoomId = (Guid)(await roomCmd.ExecuteScalarAsync())!;
+                var result = await roomCmd.ExecuteScalarAsync();
+                if (result == null)
+                {
+                    throw new InvalidOperationException("Failed to insert new room and retrieve its ID.");
+                }
+                newRoomId = (Guid)result;
             }
 
             await InsertarOpcionesDeSala(conn, newRoomId, sala.ClaveModerador, sala.ClaveEspectador);

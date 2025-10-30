@@ -40,9 +40,9 @@ public class MySqlCursoRepository : ICursoRepository
         return emails;
     }
 
-    public async Task<List<(int IdAlumno, string Email)>> ObtenerAlumnosConCorreosPorCursoAsync(int idCursoAbierto)
+    public async Task<List<(string IdAlumno, string Email)>> ObtenerAlumnosConCorreosPorCursoAsync(int idCursoAbierto)
     {
-        var alumnos = new List<(int IdAlumno, string Email)>();
+        var alumnos = new List<(string IdAlumno, string Email)>();
         await using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
 
@@ -59,7 +59,7 @@ public class MySqlCursoRepository : ICursoRepository
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            alumnos.Add((reader.GetInt32("idAlumno"), reader.GetString("Email")));
+            alumnos.Add((reader.GetString("idAlumno"), reader.GetString("Email")));
         }
 
         return alumnos;
@@ -170,7 +170,7 @@ public class MySqlCursoRepository : ICursoRepository
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<CursoAbiertoInvitacion?> ObtenerInvitacionPorCursoAlumnoAsync(int idCursoAbierto, int idAlumno)
+    public async Task<CursoAbiertoInvitacion?> ObtenerInvitacionPorCursoAlumnoAsync(int idCursoAbierto, string idAlumno)
     {
         await using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
@@ -191,7 +191,7 @@ public class MySqlCursoRepository : ICursoRepository
             {
                 Id = reader.GetInt32("id"),
                 IdCursoAbiertoBbb = reader.GetInt32("idCursoAbiertoBbb"),
-                IdAlumno = reader.GetInt32("idAlumno"),
+                IdAlumno = reader.GetString("idAlumno"),
                 Url = reader.GetString("url"),
                 IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
                 FechaCreacion = reader.GetDateTime("fechaCreacion")
