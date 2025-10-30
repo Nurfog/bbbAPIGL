@@ -40,6 +40,31 @@ public class MySqlCursoRepository : ICursoRepository
         return emails;
     }
 
+    public async Task<List<(int IdAlumno, string Email)>> ObtenerAlumnosConCorreosPorCursoAsync(int idCursoAbierto)
+    {
+        var alumnos = new List<(int IdAlumno, string Email)>();
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        string sql = @"
+            SELECT alu.idAlumno, alu.Email 
+            FROM sige_sam_v3.detallecontrato as detcon 
+            INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
+            WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCursoAbierto";
+        
+        await using var command = new MySqlCommand(sql, connection);
+        
+        command.Parameters.AddWithValue("@IdCursoAbierto", idCursoAbierto);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            alumnos.Add((reader.GetInt32("idAlumno"), reader.GetString("Email")));
+        }
+
+        return alumnos;
+    }
+
     public async Task<CursoAbiertoSala?> ObtenerDatosSalaPorCursoAsync(int idCursoAbierto)
     {
         await using var connection = new MySqlConnection(_connectionString);
@@ -48,7 +73,7 @@ public class MySqlCursoRepository : ICursoRepository
         string sql = @"
             SELECT 
                 idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, 
-                meetingId, friendlyId, recordId, nombreSala,
+                meetingId, friendlyId, recordId, nombreSala, idCalendario,
                 fechaInicio, fechaTermino, dias, horaInicio, horaTermino 
             FROM cursosabiertosbbb 
             WHERE idCursoAbierto = @IdCursoAbierto";
@@ -70,6 +95,7 @@ public class MySqlCursoRepository : ICursoRepository
                 FriendlyId = reader.IsDBNull(reader.GetOrdinal("friendlyId")) ? null : reader.GetString("friendlyId"),
                 RecordId = reader.IsDBNull(reader.GetOrdinal("recordId")) ? null : reader.GetString("recordId"),
                 NombreSala = reader.IsDBNull(reader.GetOrdinal("nombreSala")) ? null : reader.GetString("nombreSala"),
+                IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
                 FechaInicio = reader.IsDBNull(reader.GetOrdinal("fechaInicio")) ? default : reader.GetDateTime("fechaInicio"),
                 FechaTermino = reader.IsDBNull(reader.GetOrdinal("fechaTermino")) ? default : reader.GetDateTime("fechaTermino"),
                 Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias"),
@@ -96,7 +122,8 @@ public class MySqlCursoRepository : ICursoRepository
                 meetingId = NULL, 
                 friendlyId = NULL,
                 recordId = NULL,
-                nombreSala = NULL
+                nombreSala = NULL,
+                idCalendario = NULL
             WHERE roomId = @RoomId";
 
         await using var command = new MySqlCommand(sql, connection);
@@ -104,6 +131,74 @@ public class MySqlCursoRepository : ICursoRepository
 
         var rowsAffected = await command.ExecuteNonQueryAsync();
         return rowsAffected > 0;
+    }
+
+    public async Task ActualizarIdCalendarioCursoAsync(int idCursoAbierto, string idCalendario)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string sql = @"
+            UPDATE cursosabiertosbbb 
+            SET idCalendario = @IdCalendario 
+            WHERE idCursoAbierto = @IdCursoAbierto";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@IdCalendario", idCalendario);
+        command.Parameters.AddWithValue("@IdCursoAbierto", idCursoAbierto);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task GuardarInvitacionAsync(CursoAbiertoInvitacion invitacion)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string sql = @"
+            INSERT INTO cursosabiertosbbbinvitaciones 
+            (idCursoAbiertoBbb, idAlumno, url, idCalendario, fechaCreacion) 
+            VALUES (@IdCursoAbiertoBbb, @IdAlumno, @Url, @IdCalendario, @FechaCreacion)";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@IdCursoAbiertoBbb", invitacion.IdCursoAbiertoBbb);
+        command.Parameters.AddWithValue("@IdAlumno", invitacion.IdAlumno);
+        command.Parameters.AddWithValue("@Url", invitacion.Url);
+        command.Parameters.AddWithValue("@IdCalendario", invitacion.IdCalendario);
+        command.Parameters.AddWithValue("@FechaCreacion", invitacion.FechaCreacion);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task<CursoAbiertoInvitacion?> ObtenerInvitacionPorCursoAlumnoAsync(int idCursoAbierto, int idAlumno)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string sql = @"
+            SELECT id, idCursoAbiertoBbb, idAlumno, url, idCalendario, fechaCreacion 
+            FROM cursosabiertosbbbinvitaciones 
+            WHERE idCursoAbiertoBbb = @IdCursoAbiertoBbb AND idAlumno = @IdAlumno";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@IdCursoAbiertoBbb", idCursoAbierto);
+        command.Parameters.AddWithValue("@IdAlumno", idAlumno);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new CursoAbiertoInvitacion
+            {
+                Id = reader.GetInt32("id"),
+                IdCursoAbiertoBbb = reader.GetInt32("idCursoAbiertoBbb"),
+                IdAlumno = reader.GetInt32("idAlumno"),
+                Url = reader.GetString("url"),
+                IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
+                FechaCreacion = reader.GetDateTime("fechaCreacion")
+            };
+        }
+
+        return null;
     }
 
     public async Task<string?> ObtenerCorreoPorAlumnoAsync(string idAlumno, int idCursoAbierto)

@@ -300,4 +300,9 @@ public class GoogleCalendarService : IEmailService
             throw;
         }
     }
+
+    public async Task EnviarCorreoSimpleAsync(string destinatario, string asunto, string cuerpoHtml)
+    {
+        await EnviarCorreosAsync(new List<string> { destinatario }, asunto, cuerpoHtml);
+    }
 }

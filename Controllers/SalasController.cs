@@ -27,8 +27,7 @@ public class SalasController : ControllerBase
         var request = new CrearSalaRequest
         {
             Nombre = nombre,
-            EmailCreador = emailCreador,
-            CorreosParticipantes = correosParticipantes?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+            EmailCreador = emailCreador
         };
 
         if (!ModelState.IsValid) return BadRequest(ModelState);

@@ -49,30 +49,8 @@ public class SalaService : ISalaService
             ClaveModerador = claveModerador,
             ClaveEspectador = claveEspectador
         };
-
-        // Si la petición incluye una lista de participantes, envía las invitaciones y guarda el ID del evento.
-        if (request.CorreosParticipantes != null && request.CorreosParticipantes.Any())
-        {
-            var apiResponseForCalendar = new CrearSalaResponse
-            {
-                NombreSala = nuevaSala.Nombre,
-                UrlSala = $"{publicUrl}/rooms/{friendlyId}/join",
-                ClaveModerador = claveModerador,
-                ClaveEspectador = claveEspectador,
-                MeetingId = meetingId,
-                FriendlyId = friendlyId
-            };
-            try
-            {
-                nuevaSala.IdCalendario = await _emailService.EnviarInvitacionCalendarioAsync(apiResponseForCalendar, request.CorreosParticipantes);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al enviar invitación de calendario durante la creación de la sala. La sala se creará sin evento de calendario.");
-                nuevaSala.IdCalendario = null; // Asegurarse de que no se guarde un ID parcial o erróneo.
-            }
-        }
-
+/*
+*/
         Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
 
         if (newRoomId is null)
@@ -88,7 +66,8 @@ public class SalaService : ISalaService
             ClaveModerador = nuevaSala.ClaveModerador,
             ClaveEspectador = nuevaSala.ClaveEspectador,
             MeetingId = nuevaSala.MeetingId,
-            RecordId = recordId
+            RecordId = recordId,
+            FriendlyId = nuevaSala.FriendlyId
         };
 
         return apiResponse;
@@ -128,8 +107,8 @@ public class SalaService : ISalaService
             throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
         }
 
-        var correos = await _cursoRepository.ObtenerCorreosPorCursoAsync(request.IdCursoAbierto.ToString());
-        if (correos == null || !correos.Any())
+        var alumnosConCorreos = await _cursoRepository.ObtenerAlumnosConCorreosPorCursoAsync(request.IdCursoAbierto);
+        if (alumnosConCorreos == null || !alumnosConCorreos.Any())
         {
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontraron alumnos para el curso.", CorreosEnviados = 0 };
         }
@@ -151,21 +130,70 @@ public class SalaService : ISalaService
             throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
         }
 
-        try
+        int correosEnviados = 0;
+        string? idCalendarioPrincipal = sala.IdCalendario; // Usar el ID de calendario existente si lo hay
+
+        foreach (var alumno in alumnosConCorreos)
         {
-            await _emailService.EnviarInvitacionCalendarioAsync(detallesSalaParaInvitacion, correos, sala.FechaInicio, sala.FechaTermino, sala.Dias, sala.HoraInicio, sala.HoraTermino);
-        }
-        catch (Exception ex)
-        {
-            // Aquí podrías loggear el error ex para tener más detalles.
-            // Por ejemplo: _logger.LogError(ex, "Error al enviar invitaciones de calendario.");
-            throw new InvalidOperationException("Error al procesar la invitación con el servicio de calendario. Verifica la configuración y los permisos.", ex);
+            var invitacionExistente = await _cursoRepository.ObtenerInvitacionPorCursoAlumnoAsync(request.IdCursoAbierto, alumno.IdAlumno);
+
+            if (invitacionExistente != null)
+            {
+                // Si ya existe una invitación, enviar un correo simple con la URL existente
+                _logger.LogInformation("Invitación existente para el alumno {idAlumno}, enviando correo simple.", alumno.IdAlumno);
+                var asunto = $"Recordatorio: Tu clase de {sala.NombreSala}";
+                var cuerpoHtml = $"Hola,<br><br>Te recordamos tu clase de <b>{sala.NombreSala}</b>.<br>Puedes unirte a la sala virtual aquí: <a href=\"{invitacionExistente.Url}\">{invitacionExistente.Url}</a><br><br>Saludos.";
+                await _emailService.EnviarCorreoSimpleAsync(alumno.Email, asunto, cuerpoHtml);
+                correosEnviados++;
+            }
+            else
+            {
+                // Si no existe, enviar invitación de calendario y guardar
+                try
+                {
+                    _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", alumno.IdAlumno);
+                    var idEventoCalendario = await _emailService.EnviarInvitacionCalendarioAsync(
+                        detallesSala, 
+                        new List<string> { alumno.Email }, 
+                        sala.FechaInicio, 
+                        sala.FechaTermino, 
+                        sala.Dias, 
+                        sala.HoraInicio, 
+                        sala.HoraTermino);
+
+                    if (!string.IsNullOrEmpty(idEventoCalendario))
+                    {
+                        var nuevaInvitacion = new CursoAbiertoInvitacion
+                        {
+                            IdCursoAbiertoBbb = request.IdCursoAbierto,
+                            IdAlumno = alumno.IdAlumno,
+                            Url = detallesSala.UrlSala,
+                            IdCalendario = idEventoCalendario,
+                            FechaCreacion = DateTime.UtcNow
+                        };
+                        await _cursoRepository.GuardarInvitacionAsync(nuevaInvitacion);
+                        correosEnviados++;
+
+                        // Si es la primera invitación de calendario para el curso, guardar su ID
+                        if (string.IsNullOrEmpty(idCalendarioPrincipal))
+                        {
+                            idCalendarioPrincipal = idEventoCalendario;
+                            await _cursoRepository.ActualizarIdCalendarioCursoAsync(request.IdCursoAbierto, idCalendarioPrincipal);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al enviar invitación de calendario para el alumno {idAlumno}.", alumno.IdAlumno);
+                    // Continuar con los demás alumnos aunque falle uno
+                }
+            }
         }
 
         return new EnviarInvitacionCursoResponse
         {
-            Mensaje = "Invitaciones enviadas exitosamente.",
-            CorreosEnviados = correos.Count
+            Mensaje = $"Proceso de envío de invitaciones completado. {correosEnviados} correos/invitaciones enviados.",
+            CorreosEnviados = correosEnviados
         };
     }
 
@@ -224,8 +252,8 @@ public class SalaService : ISalaService
             throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
         }
 
-        var correo = await _cursoRepository.ObtenerCorreoPorAlumnoAsync(request.IdAlumno, request.IdCursoAbierto);
-        if (string.IsNullOrEmpty(correo))
+        var correoAlumno = await _cursoRepository.ObtenerCorreoPorAlumnoAsync(request.IdAlumno.ToString(), request.IdCursoAbierto);
+        if (string.IsNullOrEmpty(correoAlumno))
         {
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontró un alumno con el ID especificado para este curso.", CorreosEnviados = 0 };
         }
@@ -247,21 +275,64 @@ public class SalaService : ISalaService
             throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
         }
 
-        try
-        {
-            await _emailService.EnviarInvitacionCalendarioAsync(detallesSalaParaInvitacion, new List<string> { correo }, sala.FechaInicio, sala.FechaTermino, sala.Dias, sala.HoraInicio, sala.HoraTermino);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al procesar la invitación individual con el servicio de calendario.");
-            throw new InvalidOperationException("Error al procesar la invitación con el servicio de calendario. Verifica la configuración y los permisos.", ex);
-        }
+        var invitacionExistente = await _cursoRepository.ObtenerInvitacionPorCursoAlumnoAsync(request.IdCursoAbierto, request.IdAlumno);
 
-        return new EnviarInvitacionCursoResponse
+        if (invitacionExistente != null)
         {
-            Mensaje = "Invitación enviada exitosamente.",
-            CorreosEnviados = 1
-        };
+            _logger.LogInformation("Invitación existente para el alumno {idAlumno}, enviando correo simple.", request.IdAlumno);
+            var asunto = $"Recordatorio: Tu clase de {sala.NombreSala}";
+            var cuerpoHtml = $"Hola,<br><br>Te recordamos tu clase de <b>{sala.NombreSala}</b>.<br>Puedes unirte a la sala virtual aquí: <a href=\"{invitacionExistente.Url}\">{invitacionExistente.Url}</a><br><br>Saludos.";
+            await _emailService.EnviarCorreoSimpleAsync(correoAlumno, asunto, cuerpoHtml);
+            return new EnviarInvitacionCursoResponse
+            {
+                Mensaje = "Recordatorio enviado exitosamente.",
+                CorreosEnviados = 1
+            };
+        }
+        else
+        {
+            try
+            {
+                _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", request.IdAlumno);
+                var idEventoCalendario = await _emailService.EnviarInvitacionCalendarioAsync(
+                    detallesSala, 
+                    new List<string> { correoAlumno }, 
+                    sala.FechaInicio, 
+                    sala.FechaTermino, 
+                    sala.Dias, 
+                    sala.HoraInicio, 
+                    sala.HoraTermino);
+
+                if (!string.IsNullOrEmpty(idEventoCalendario))
+                {
+                    var nuevaInvitacion = new CursoAbiertoInvitacion
+                    {
+                        IdCursoAbiertoBbb = request.IdCursoAbierto,
+                        IdAlumno = request.IdAlumno,
+                        Url = detallesSala.UrlSala,
+                        IdCalendario = idEventoCalendario,
+                        FechaCreacion = DateTime.UtcNow
+                    };
+                    await _cursoRepository.GuardarInvitacionAsync(nuevaInvitacion);
+
+                    if (string.IsNullOrEmpty(sala.IdCalendario))
+                    {
+                        await _cursoRepository.ActualizarIdCalendarioCursoAsync(request.IdCursoAbierto, idEventoCalendario);
+                    }
+                }
+
+                return new EnviarInvitacionCursoResponse
+                {
+                    Mensaje = "Invitación enviada exitosamente.",
+                    CorreosEnviados = 1
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al procesar la invitación individual con el servicio de calendario.");
+                throw new InvalidOperationException("Error al procesar la invitación con el servicio de calendario. Verifica la configuración y los permisos.", ex);
+            }
+        }
     }
 
     public async Task<EnviarInvitacionCursoResponse> ActualizarInvitacionesCursoAsync(ActualizarEventoCalendarioRequest request)

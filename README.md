@@ -83,155 +83,130 @@ Configura la inyección de dependencias, registrando los servicios y repositorio
 
 ## Documentación de Uso
 
-### Ejecución del Proyecto
+Documentación de la API para Integración con BigBlueButton
+Versión: 2.1 URL Base: https://bbb.norteamericano.com/apiv2
+Introducción
+Esta API proporciona una interfaz para interactuar con la plataforma de conferencias web BigBlueButton (BBB) a través de su sistema de gestión Greenlight. Permite la creación y eliminación de salas, así como el envío de notificaciones a cursos específicos.
+Toda la comunicación con la API se realiza a través de HTTPS. Los cuerpos de las peticiones y respuestas deben estar en formato JSON.
 
-1.  Asegúrese de haber configurado `appsettings.json` y `google-credentials.json` como se describe en la sección de Configuración.
-2.  Abra una terminal en la raíz del proyecto.
-3.  Ejecute el siguiente comando para construir y correr la aplicación:
-    ```bash
-    dotnet run
-    ```
-4.  La API estará disponible en `https://localhost:XXXX` (el puerto exacto se mostrará en la consola).
-
-### Endpoints de la API
-
-Puede acceder a la documentación interactiva de la API a través de Swagger UI en `https://localhost:XXXX/swagger` (reemplace `XXXX` con el puerto de su aplicación).
-
----
+### Endpoints
+#### 1.1 Crear una Nueva Sala
+Crea una nueva sala en la base de datos de Greenlight y la asocia a un usuario creador.
+-   **Método**: `POST`
+-   **URL**: `/salas/{nombre}/{emailCreador}`
+-   **URL Completa**: `https://bbb.norteamericano.com/apiv2/salas/{nombre}/{emailCreador}`
+-   **Parámetros de URL (Path Parameters)**
+    | Campo        | Tipo   | Requerido | Descripción                                                              |
+    |--------------|--------|----------|--------------------------------------------------------------------------|
+    | `nombre`       | string | Sí       | El nombre que se le asignará a la sala de conferencia.                   |
+    | `emailCreador` | string | Sí       | El correo electrónico del usuario registrado en Greenlight que será el propietario de la sala. |
 
 
-### Salas
+-   **Respuesta Exitosa (201 Created)**
+    Devuelve un objeto JSON con todos los detalles de la sala recién creada.
+    | Campo           | Tipo   | Descripción                                                              |
+    |-----------------|--------|--------------------------------------------------------------------------|
+    | `roomId`          | guid   | El ID único de la sala en la base de datos de Greenlight (UUID).         |
+    | `urlSala`         | string | La URL directa para unirse a la sala.                                    |
+    | `claveModerador`  | string | La contraseña para unirse a la sala como moderador.                      |
+    | `claveEspectador` | string | La contraseña para unirse a la sala como espectador.                     |
+    | `meetingId`       | string | El ID interno de la reunión utilizado por BigBlueButton.                 |
+    | `friendlyId`      | string | El ID "amigable" que forma parte de la URL de la sala.                   |
+    | `recordId`        | string | Un identificador único generado para una posible grabación de esta sesión. |
 
-#### `POST /salas`
-
-Crea una nueva sala de reuniones virtual y, opcionalmente, envía invitaciones de calendario.
-
--   **Request Body**: `CrearSalaRequest`
-    ```json
-    {
-        "nombre": "Nombre de la Sala de Clase",
-        "emailCreador": "creador@example.com"
-    }
-    ```
--   **Success Response**: `201 Created`
+-   **JSON de Ejemplo (Response)**
     ```json
     {
         "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-        "urlSala": "https://public.url/rooms/friendly-id/join",
-        "claveModerador": "moderatorPassword",
-        "claveEspectador": "attendeePassword",
-        "meetingId": "guid-meeting-id",
-        "friendlyId": "friendly-id",
-        "recordId": "meeting-id-timestamp",
-        "nombreSala": "Nombre de la Sala de Clase"
+        "urlSala": "https://bbb.norteamericano.com/rooms/abc-123-def-456/join",
+        "claveModerador": "g3h4j5k6",
+        "claveEspectador": "a1b2c3d4",
+        "meetingId": "una_cadena_larga_de_40_caracteres",
+        "friendlyId": "abc-123-def-456",
+        "recordId": "una_cadena_larga_de_40_caracteres-1756543210"
     }
     ```
--   **Error Response**: `400 Bad Request`, `500 Internal Server Error`
 
-#### `DELETE /salas/{roomId}`
+#### 1.2 Eliminar una Sala
+Elimina permanentemente una sala y todas sus configuraciones asociadas de la base de datos de Greenlight.
+-   **Método**: `DELETE`
+-   **URL**: `/salas/{roomId}`
+-   **URL Completa**: `https://bbb.norteamericano.com/apiv2/salas/{roomId}`
+-   **Parámetros de URL (Path Parameters)**
+    | Parámetro | Tipo | Requerido | Descripción                                            |
+    |-----------|------|----------|--------------------------------------------------------|
+    | `roomId`    | guid | Sí       | El identificador único (UUID) de la sala que se desea eliminar. |
 
-Elimina una sala de reuniones existente y su evento de calendario asociado (si existe).
+-   **Respuesta Exitosa (204 No Content)**
+    Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.
+-   **Respuestas de Error**
+    -   `404 Not Found`: Si no se encuentra ninguna sala con el `roomId` proporcionado.
+    -   `500 Internal Server Error`: Si ocurre un error en la base de datos durante la eliminación.
 
--   **URL Parameters**:
-    -   `roomId` (guid): El ID de la sala a eliminar.
--   **Success Response**: `204 No Content`
--   **Error Response**: `404 Not Found` (si la sala no existe), `500 Internal Server Error`
+#### 2. Enviar Invitaciones a un Curso
+Envía un correo electrónico de invitación a todos los alumnos de un curso específico registrado en la base de datos MySQL del cliente.
+-   **Método**: `POST`
+-   **URL**: `/invitaciones/{idCursoAbierto}`
+-   **URL Completa**: `https://bbb.norteamericano.com/apiv2/invitaciones/{idCursoAbierto}`
+-   **Parámetros de URL (Path Parameters)**
+    | Campo            | Tipo    | Requerido | Descripción                                                              |
+    |------------------|---------|----------|--------------------------------------------------------------------------|
+    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso (de la tabla `cursosabiertosbbb`) al que se enviarán las invitaciones. |
 
----
-
-
-### Invitaciones
-
-#### `POST /invitaciones`
-
-Envía invitaciones por correo y crea un evento de calendario recurrente para todos los participantes de un curso.
-
--   **Request Body**: `EnviarInvitacionCursoRequest`
+-   **JSON de Ejemplo (Request)**
     ```json
-    {
-        "idCursoAbierto": 123
-    }
+    // No se requiere cuerpo de petición para este endpoint.
     ```
--   **Success Response**: `200 OK`
+-   **Respuesta Exitosa (200 OK)**
+    Devuelve un objeto JSON confirmando el resultado de la operación.
+    | Campo            | Tipo    | Descripción                               |
+    |------------------|---------|-------------------------------------------|
+    | `mensaje`          | string  | Un mensaje de confirmación.               |
+    | `correosEnviados` | integer | El número de correos que se enviaron a los alumnos del curso. |
+
+-   **JSON de Ejemplo (Response)**
     ```json
     {
         "mensaje": "Invitaciones enviadas exitosamente.",
-        "correosEnviados": 15
+        "correosEnviados": 42
     }
     ```
--   **Error Response**: `400 Bad Request` (si el curso no tiene horario definido o no se encuentran alumnos), `500 Internal Server Error`
+-   **Respuestas de Error**
+    -   `404 Not Found`: Si no se encuentra el curso o la sala asociada en la base de datos MySQL.
 
-#### `POST /invitaciones/individual`
+#### 3. Obtener Grabaciones de un Curso 🎥
+Obtiene una lista de todas las grabaciones disponibles para un curso específico, incluyendo su URL de reproducción y fecha de creación.
+-   **Método**: `GET`
+-   **URL**: `/grabaciones/{idCursoAbierto}`
+-   **URL Completa**: `https://bbb.norteamericano.com/apiv2/grabaciones/{idCursoAbierto}`
+-   **Parámetros de URL (Path Parameters)**
+    | Parámetro        | Tipo    | Requerido | Descripción                                                              |
+    |------------------|---------|----------|--------------------------------------------------------------------------|
+    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso del que se desean obtener las grabaciones.      |
 
-Envía una invitación individual por correo y crea un evento de calendario recurrente para un alumno específico de un curso.
+-   **Respuesta Exitosa (200 OK)**
+    Devuelve un arreglo de objetos JSON, donde cada objeto representa una grabación. El arreglo está ordenado de la más reciente a la más antigua. Si no hay grabaciones, devuelve un arreglo vacío `[]`.
+    | Campo         | Tipo   | Descripción                                                              |
+    |---------------|--------|--------------------------------------------------------------------------|
+    | `recordId`      | string | El ID único de la grabación, utilizado para construir la URL.            |
+    | `playbackUrl`   | string | La URL completa para ver la grabación en un navegador.                   |
+    | `createdAt`     | string | La fecha en que se creó la grabación, en formato `YYYY-MM-DD`.           |
 
--   **Request Body**: `EnviarInvitacionIndividualRequest`
-    ```json
-    {
-        "idAlumno": "ID_DEL_ALUMNO",
-        "idCursoAbierto": 123
-    }
-    ```
--   **Success Response**: `200 OK`
-    ```json
-    {
-        "mensaje": "Invitación enviada exitosamente.",
-        "correosEnviados": 1
-    }
-    ```
--   **Error Response**: `400 Bad Request` (si el curso no tiene horario definido o el alumno no se encuentra), `500 Internal Server Error`
-
-#### `PUT /invitaciones/{idCursoAbierto}`
-
-Actualiza un evento de calendario existente para un curso. Permite modificar participantes, fechas y horarios.
-
--   **URL Parameters**:
-    -   `idCursoAbierto` (int): El ID del curso abierto cuyo evento de calendario se desea actualizar.
--   **Request Body**: `ActualizarEventoCalendarioRequest`
-    ```json
-    {
-        "correosParticipantes": [
-            "nuevo_alumno1@example.com",
-            "nuevo_alumno2@example.com"
-        ],
-        "fechaInicio": "2025-01-01T10:00:00Z",
-        "fechaTermino": "2025-03-31T12:00:00Z",
-        "diasSemana": "LU,MI,VI",
-        "horaInicio": "10:00:00",
-        "horaTermino": "11:30:00"
-    }
-    ```
--   **Success Response**: `200 OK`
-    ```json
-    {
-        "mensaje": "Invitaciones actualizadas exitosamente.",
-        "correosEnviados": 2
-    }
-    ```
--   **Error Response**: `400 Bad Request` (si el curso no tiene horario definido, no se encuentran alumnos o no hay evento de calendario asociado), `500 Internal Server Error`
-
----
-
-
-### Grabaciones
-
-#### `GET /grabaciones/{idCursoAbierto}`
-
-Obtiene las URLs pre-firmadas de las grabaciones disponibles para un curso específico.
-
--   **URL Parameters**:
-    -   `idCursoAbierto` (int): El ID del curso abierto.
--   **Success Response**: `200 OK`
+-   **JSON de Ejemplo (Response)**
     ```json
     [
         {
-            "recordId": "record-id-ejemplo",
-            "playbackUrl": "https://s3.bucket.url/presigned-url-to-recording.mp4",
-            "createdAt": "2023-10-27"
+            "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
+            "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
+            "createdAt": "2025-09-12"
+        },
+        {
+            "recordId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
+            "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
+            "createdAt": "2025-09-10"
         }
     ]
     ```
--   **Error Response**: `404 Not Found` (si el curso no existe o no tiene grabaciones asociadas)
 
 ## Estructura de Carpetas
 
