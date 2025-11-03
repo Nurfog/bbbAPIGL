@@ -16,6 +16,7 @@ public class SalaService : ISalaService
     private readonly ICursoRepository _cursoRepository;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
+    private readonly ICalendarService _calendarService;
     private readonly ILogger<SalaService> _logger;
 
     public SalaService(
@@ -23,12 +24,14 @@ public class SalaService : ISalaService
         ICursoRepository cursoRepository,
         IConfiguration configuration,
         IEmailService emailService,
+        ICalendarService calendarService,
         ILogger<SalaService> logger)
     {
         _salaRepository = salaRepository;
         _cursoRepository = cursoRepository;
         _configuration = configuration;
         _emailService = emailService;
+        _calendarService = calendarService;
         _logger = logger;
     }
 
@@ -80,7 +83,7 @@ public class SalaService : ISalaService
         {
             try
             {
-                await _emailService.EliminarEventoCalendarioAsync(idCalendario);
+                await _calendarService.EliminarEventoCalendarioAsync(idCalendario);
             }
             catch (Exception ex)
             {
@@ -119,7 +122,7 @@ public class SalaService : ISalaService
             FriendlyId = sala.FriendlyId ?? string.Empty,
             UrlSala = sala.UrlSala ?? string.Empty,
             ClaveEspectador = sala.ClaveEspectador ?? string.Empty,
-            ClaveModerador = sala.ClaveModerador ?? string.Empty,
+            ClaveModerador = string.Empty,
             MeetingId = sala.MeetingId ?? string.Empty,
             RecordId = string.Empty
         };
@@ -151,7 +154,7 @@ public class SalaService : ISalaService
                 try
                 {
                     _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", alumno.IdAlumno);
-                    var idEventoCalendario = await _emailService.EnviarInvitacionCalendarioAsync(
+                    var idEventoCalendario = await _calendarService.EnviarInvitacionCalendarioAsync(
                         detallesSalaResponse, 
                         new List<string> { alumno.Email }, 
                         sala.FechaInicio, 
@@ -264,7 +267,7 @@ public class SalaService : ISalaService
             FriendlyId = sala.FriendlyId ?? string.Empty,
             UrlSala = sala.UrlSala ?? string.Empty,
             ClaveEspectador = sala.ClaveEspectador ?? string.Empty,
-            ClaveModerador = sala.ClaveModerador ?? string.Empty,
+            ClaveModerador = string.Empty,
             MeetingId = sala.MeetingId ?? string.Empty,
             RecordId = string.Empty
         };
@@ -293,7 +296,7 @@ public class SalaService : ISalaService
             try
             {
                 _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", request.IdAlumno);
-                var idEventoCalendario = await _emailService.EnviarInvitacionCalendarioAsync(
+                var idEventoCalendario = await _calendarService.EnviarInvitacionCalendarioAsync(
                     detallesSalaResponse, 
                     new List<string> { correoAlumno }, 
                     sala.FechaInicio, 
@@ -360,7 +363,7 @@ public class SalaService : ISalaService
             FriendlyId = sala.FriendlyId ?? string.Empty,
             UrlSala = sala.UrlSala ?? string.Empty,
             ClaveEspectador = sala.ClaveEspectador ?? string.Empty,
-            ClaveModerador = sala.ClaveModerador ?? string.Empty,
+            ClaveModerador = string.Empty,
             MeetingId = sala.MeetingId ?? string.Empty,
             RecordId = string.Empty
         };
@@ -378,7 +381,7 @@ public class SalaService : ISalaService
 
         try
         {
-            await _emailService.ActualizarEventoCalendarioAsync(sala.IdCalendario, detallesSalaResponse, correos, fechaInicio, fechaTermino, dias, horaInicio, horaTermino);
+            await _calendarService.ActualizarEventoCalendarioAsync(sala.IdCalendario, detallesSalaResponse, correos, fechaInicio, fechaTermino, dias, horaInicio, horaTermino);
         }
         catch (Exception ex)
         {

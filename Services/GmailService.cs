@@ -4,6 +4,7 @@ using Google.Apis.Services;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using MimeKit;
 
 /// <summary>
 /// Servicio para el envío de correos electrónicos utilizando la API de Gmail.
@@ -86,11 +87,11 @@ public class GmailService : IEmailService
     /// Obtiene una instancia de GmailService autenticada.
     /// </summary>
     /// <returns>Una tarea que representa la operación asíncrona. El resultado es una instancia de GmailService.</returns>
-    private async Task<GmailService> GetGmailServiceAsync()
+    private async Task<Google.Apis.Gmail.v1.GmailService> GetGmailServiceAsync()
     {
         _logger.LogInformation("Obteniendo servicio de Gmail.");
-        var credential = await GoogleAuthService.GetGoogleCredentialAsync(_configuration, _logger, GmailService.Scope.GmailSend);
-        return new GmailService(new BaseClientService.Initializer
+        var credential = await GoogleAuthService.GetGoogleCredentialAsync(_configuration, _logger, Google.Apis.Gmail.v1.GmailService.Scope.GmailSend);
+        return new Google.Apis.Gmail.v1.GmailService(new BaseClientService.Initializer
         {
             HttpClientInitializer = credential,
             ApplicationName = "bbbAPIGL API"
