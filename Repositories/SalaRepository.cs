@@ -1,12 +1,35 @@
 using Npgsql;
 using bbbAPIGL.Models;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
+/// <summary>
+/// Implementación del repositorio de salas utilizando PostgreSQL.
+/// Autor: Juan Enrique Allende Cifuentes
+/// Fecha de Creación: 17-10-2025
+/// </summary>
 namespace bbbAPIGL.Repositories;
 
-public class SalaRepository(IConfiguration configuration) : ISalaRepository
+public class SalaRepository : ISalaRepository
 {
-    private readonly string _connectionString = configuration.GetConnectionString("PostgresDb")!;
+    private readonly string _connectionString;
+    private readonly ILogger<SalaRepository> _logger;
 
+    public SalaRepository(IConfiguration configuration, ILogger<SalaRepository> logger)
+    {
+        _connectionString = configuration.GetConnectionString("PostgresDb")!;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Guarda una nueva sala en la base de datos PostgreSQL.
+    /// </summary>
+    /// <param name="sala">El objeto Sala a guardar.</param>
+    /// <param name="userEmail">El correo electrónico del usuario que crea la sala.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el GUID de la sala guardada o null si falla.</returns>
     public async Task<Guid?> GuardarSalaAsync(Sala sala, string userEmail)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -44,11 +67,11 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
                 roomCmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
                 roomCmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
                 var result = await roomCmd.ExecuteScalarAsync();
-                if (result == null)
+                if (result is not Guid newGuid)
                 {
-                    throw new InvalidOperationException("Failed to insert new room and retrieve its ID.");
+                    throw new InvalidOperationException("Error al insertar la nueva sala y recuperar su ID.");
                 }
-                newRoomId = (Guid)result;
+                newRoomId = newGuid;
             }
 
             await InsertarOpcionesDeSala(conn, newRoomId, sala.ClaveModerador, sala.ClaveEspectador);
@@ -56,13 +79,22 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             await transaction.CommitAsync();
             return newRoomId;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error al guardar la sala.");
             await transaction.RollbackAsync();
             return null;
         }
     }
 
+    /// <summary>
+    /// Inserta las opciones de configuración de una sala en la base de datos.
+    /// </summary>
+    /// <param name="conn">La conexión Npgsql activa.</param>
+    /// <param name="roomId">El ID de la sala a la que se asociarán las opciones.</param>
+    /// <param name="moderatorPw">La contraseña del moderador.</param>
+    /// <param name="attendeePw">La contraseña del espectador.</param>
+    /// <returns>Una tarea que representa la operación asíncrona.</returns>
     private static async Task InsertarOpcionesDeSala(NpgsqlConnection conn, Guid roomId, string moderatorPw, string attendeePw)
     {
         var optionsData = new Dictionary<Guid, string>
@@ -96,6 +128,11 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
         }
     }
     
+    /// <summary>
+    /// Elimina una sala y todas sus asociaciones (opciones, grabaciones, accesos compartidos) de la base de datos PostgreSQL.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala a eliminar.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es true si la sala fue eliminada con éxito, false en caso contrario.</returns>
     public async Task<bool> EliminarSalaAsync(Guid roomId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -162,10 +199,16 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            Console.WriteLine($"Error al eliminar la sala: {ex.ToString()}");
+            _logger.LogError(ex, "Error al eliminar la sala: {RoomId}", roomId);
             throw;
         }
     }
+
+    /// <summary>
+    /// Obtiene una sala de la base de datos PostgreSQL por su ID.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala a obtener.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el objeto Sala o null si no se encuentra.</returns>
     public async Task<Sala?> ObtenerSalaPorIdAsync(Guid roomId)
     {
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -189,6 +232,12 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
         }
         return null;
     }
+
+    /// <summary>
+    /// Obtiene todos los IDs de grabación asociados a un RoomId específico desde la base de datos PostgreSQL.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es una lista de objetos RecordingInfo.</returns>
     public async Task<List<RecordingInfo>> ObtenerTodosLosRecordIdsPorRoomIdAsync(Guid roomId)
     {
         var recordings = new List<RecordingInfo>();
@@ -214,36 +263,24 @@ public class SalaRepository(IConfiguration configuration) : ISalaRepository
             });
         }
         
-                return recordings;
-        
-            }
-        
-        
-        
-            public async Task<string?> ObtenerIdCalendarioPorSalaIdAsync(Guid roomId)
-        
-            {
-        
-                await using var conn = new NpgsqlConnection(_connectionString);
-        
-                await conn.OpenAsync();
-        
-                string sql = "SELECT calendar_event_id FROM rooms WHERE id = @RoomId";
-        
-        
-        
-                await using var command = new NpgsqlCommand(sql, conn);
-        
-                command.Parameters.AddWithValue("@RoomId", roomId);
-        
-        
-        
-                var result = await command.ExecuteScalarAsync();
-        
-                return result is not DBNull ? result?.ToString() : null;
-        
-            }
-        
-        }
-        
-        
+        return recordings;
+    }
+
+    /// <summary>
+    /// Obtiene el ID del calendario asociado a una sala por su ID desde la base de datos PostgreSQL.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del calendario o null si no se encuentra.</returns>
+    public async Task<string?> ObtenerIdCalendarioPorSalaIdAsync(Guid roomId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        string sql = "SELECT calendar_event_id FROM rooms WHERE id = @RoomId";
+
+        await using var command = new NpgsqlCommand(sql, conn);
+        command.Parameters.AddWithValue("@RoomId", roomId);
+
+        var result = await command.ExecuteScalarAsync();
+        return result is not DBNull ? result?.ToString() : null;
+    }
+}

@@ -1,17 +1,22 @@
 using bbbAPIGL.DTOs;
-using Google.Apis.Auth.OAuth2;
-using System;
 using Google.Apis.Calendar.v3;
 using Google.Apis.Calendar.v3.Data;
-using Google.Apis.Gmail.v1;
-using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
-using System.Text;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
+/// <summary>
+/// Servicio para la gestión de eventos en Google Calendar.
+/// Autor: Juan Enrique Allende Cifuentes
+/// Fecha de Creación: 20-10-2025
+/// </summary>
 namespace bbbAPIGL.Services;
 
-public class GoogleCalendarService : IEmailService
+public class GoogleCalendarService : ICalendarService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<GoogleCalendarService> _logger;
@@ -22,6 +27,12 @@ public class GoogleCalendarService : IEmailService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Envía una invitación de calendario no recurrente para una sala.
+    /// </summary>
+    /// <param name="detallesSala">Detalles de la sala para la invitación.</param>
+    /// <param name="correosParticipantes">Lista de correos electrónicos de los participantes.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del evento de calendario creado o null si falla.</returns>
     public async Task<string?> EnviarInvitacionCalendarioAsync(CrearSalaResponse detallesSala, List<string> correosParticipantes)
     {
         try
@@ -29,6 +40,7 @@ public class GoogleCalendarService : IEmailService
             _logger.LogInformation("Enviando invitación de calendario (no recurrente) para la sala {salaNombre}.", detallesSala.NombreSala);
             var service = await GetCalendarServiceAsync();
             var timeZone = _configuration["GoogleCalendarSettings:DefaultTimeZone"] ?? "America/Santiago";
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
 
             var newEvent = CrearEventoBase(detallesSala, correosParticipantes, timeZone);
             newEvent.Start = new EventDateTime { DateTimeDateTimeOffset = DateTime.UtcNow, TimeZone = timeZone };
@@ -36,7 +48,7 @@ public class GoogleCalendarService : IEmailService
 
             _logger.LogDebug("Creando evento en calendario: Summary='{summary}', Start='{start}', End='{end}'", newEvent.Summary, newEvent.Start.DateTimeDateTimeOffset, newEvent.End.DateTimeDateTimeOffset);
 
-            var request = service.Events.Insert(newEvent, "primary");
+            var request = service.Events.Insert(newEvent, calendarId);
             request.SendNotifications = true;
 
             var createdEvent = await request.ExecuteAsync();
@@ -50,6 +62,17 @@ public class GoogleCalendarService : IEmailService
         }
     }
 
+    /// <summary>
+    /// Envía una invitación de calendario recurrente para una sala.
+    /// </summary>
+    /// <param name="detallesSala">Detalles de la sala para la invitación.</param>
+    /// <param name="correosParticipantes">Lista de correos electrónicos de los participantes.</param>
+    /// <param name="fechaInicio">Fecha de inicio del evento.</param>
+    /// <param name="fechaTermino">Fecha de término del evento.</param>
+    /// <param name="diasSemana">Días de la semana en que se repite el evento (ej. "LU,MI,VI").</param>
+    /// <param name="horaInicio">Hora de inicio del evento.</param>
+    /// <param name="horaTermino">Hora de término del evento.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del evento de calendario creado o null si falla.</returns>
     public async Task<string?> EnviarInvitacionCalendarioAsync(
         CrearSalaResponse detallesSala, 
         List<string> correosParticipantes,
@@ -64,6 +87,7 @@ public class GoogleCalendarService : IEmailService
             _logger.LogInformation("Enviando invitación de calendario recurrente para la sala {salaNombre}.", detallesSala.NombreSala);
             var service = await GetCalendarServiceAsync();
             var timeZone = _configuration["GoogleCalendarSettings:DefaultTimeZone"] ?? "America/Santiago";
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
 
             var diasRrule = ConvertirDiasParaRRule(diasSemana);
             if (string.IsNullOrEmpty(diasRrule))
@@ -85,7 +109,7 @@ public class GoogleCalendarService : IEmailService
 
             _logger.LogDebug("Creando evento recurrente en calendario: Summary='{summary}', Start='{start}', End='{end}', Recurrence='{recurrence}'", newEvent.Summary, newEvent.Start.DateTimeDateTimeOffset, newEvent.End.DateTimeDateTimeOffset, newEvent.Recurrence.FirstOrDefault());
 
-            var request = service.Events.Insert(newEvent, "primary");
+            var request = service.Events.Insert(newEvent, calendarId);
             request.SendNotifications = true;
 
             var createdEvent = await request.ExecuteAsync();
@@ -99,13 +123,19 @@ public class GoogleCalendarService : IEmailService
         }
     }
 
+    /// <summary>
+    /// Elimina un evento de calendario existente.
+    /// </summary>
+    /// <param name="eventoId">El ID del evento de calendario a eliminar.</param>
+    /// <returns>Una tarea que representa la operación asíncrona.</returns>
     public async Task EliminarEventoCalendarioAsync(string eventoId)
     {
         try
         {
             _logger.LogInformation("Eliminando evento de calendario con ID: {eventoId}", eventoId);
             var service = await GetCalendarServiceAsync();
-            var request = service.Events.Delete("primary", eventoId);
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
+            var request = service.Events.Delete(calendarId, eventoId);
             request.SendNotifications = true;
             await request.ExecuteAsync();
             _logger.LogInformation("Evento de calendario eliminado exitosamente.");
@@ -117,143 +147,18 @@ public class GoogleCalendarService : IEmailService
         }
     }
 
-    private Event CrearEventoBase(CrearSalaResponse detallesSala, List<string> correosParticipantes, string timeZone)
-    {
-        return new Event
-        {
-            Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}",
-            Location = detallesSala.UrlSala,
-            Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Moderador: {detallesSala.ClaveModerador}\nClave Espectador: {detallesSala.ClaveEspectador}",
-            Attendees = correosParticipantes.Select(email => new EventAttendee { Email = email }).ToList(),
-            Reminders = new Event.RemindersData { UseDefault = true }
-        };
-    }
-
-    private string ConvertirDiasParaRRule(string dias)
-    {
-        var mapeoDias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "LU", "MO" }, { "MA", "TU" }, { "MI", "WE" }, { "JU", "TH" }, { "VI", "FR" }, { "SA", "SA" }, { "DO", "SU" }
-        };
-
-        var diasSplit = dias.Split(new[] { ',' , ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        
-        return string.Join(",", diasSplit
-            .Select(dia => dia.Trim())
-            .Where(dia => mapeoDias.ContainsKey(dia))
-            .Select(dia => mapeoDias[dia]));
-    }
-
-    public async Task EnviarCorreosAsync(List<string> destinatarios, string asunto, string cuerpoHtml)
-    {
-        try
-        {
-            _logger.LogInformation("Enviando correo a {count} destinatarios con asunto: {asunto}", destinatarios.Count, asunto);
-            var service = await GetGmailServiceAsync();
-            var fromEmail = _configuration["GoogleCalendarSettings:UserToImpersonate"];
-            if (string.IsNullOrWhiteSpace(fromEmail))
-            {
-                _logger.LogError("El correo del remitente (UserToImpersonate) no está configurado.");
-                throw new ArgumentException("El correo del remitente (UserToImpersonate) no está configurado correctamente.");
-            }
-
-            var mailMessage = new System.Net.Mail.MailMessage
-            {
-                From = new System.Net.Mail.MailAddress(fromEmail),
-                Subject = asunto,
-                Body = cuerpoHtml,
-                IsBodyHtml = true
-            };
-            destinatarios.ForEach(email => mailMessage.Bcc.Add(email));
-
-            var mimeMessage = MimeKit.MimeMessage.CreateFromMailMessage(mailMessage);
-            
-            var rawMessage = Convert.ToBase64String(Encoding.UTF8.GetBytes(mimeMessage.ToString()))
-                .Replace('+', '-')
-                .Replace('/', '_')
-                .Replace("=", "");
-            
-            var message = new Message { Raw = rawMessage };
-            await service.Users.Messages.Send(message, fromEmail).ExecuteAsync();
-            _logger.LogInformation("Correo enviado exitosamente.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al enviar correo.");
-            throw;
-        }
-    }
-
-    private async Task<CalendarService> GetCalendarServiceAsync()
-    {
-        _logger.LogInformation("Obteniendo servicio de Google Calendar.");
-        var settings = _configuration.GetSection("GoogleCalendarSettings");
-        var credentialsFilePath = settings["CredentialsFile"];
-        var userToImpersonate = settings["UserToImpersonate"];
-
-        _logger.LogDebug("Ruta de archivo de credenciales: {path}", credentialsFilePath);
-        _logger.LogDebug("Usuario a suplantar: {user}", userToImpersonate);
-
-        if (string.IsNullOrWhiteSpace(credentialsFilePath))
-        {
-            _logger.LogError("El archivo de credenciales (CredentialsFile) no está configurado.");
-            throw new ArgumentException("El archivo de credenciales (CredentialsFile) no está configurado correctamente.");
-        }
-        if (string.IsNullOrWhiteSpace(userToImpersonate))
-        {
-            _logger.LogError("El usuario a suplantar (UserToImpersonate) no está configurado.");
-            throw new ArgumentException("El usuario a suplantar (UserToImpersonate) no está configurado correctamente.");
-        }
-
-        GoogleCredential credential;
-        await using (var stream = new FileStream(credentialsFilePath, FileMode.Open, FileAccess.Read))
-        {
-            credential = GoogleCredential.FromStream(stream)
-                .CreateScoped(CalendarService.Scope.Calendar)
-                .CreateWithUser(userToImpersonate);
-        }
-        return new CalendarService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = credential,
-            ApplicationName = "bbbAPIGL API"
-        });
-    }
-
-    private async Task<GmailService> GetGmailServiceAsync()
-    {
-        _logger.LogInformation("Obteniendo servicio de Gmail.");
-        var settings = _configuration.GetSection("GoogleCalendarSettings");
-        var credentialsFilePath = settings["CredentialsFile"];
-        var userToImpersonate = settings["UserToImpersonate"];
-
-        _logger.LogDebug("Ruta de archivo de credenciales: {path}", credentialsFilePath);
-        _logger.LogDebug("Usuario a suplantar: {user}", userToImpersonate);
-
-        if (string.IsNullOrWhiteSpace(credentialsFilePath))
-        {
-            _logger.LogError("El archivo de credenciales (CredentialsFile) no está configurado.");
-            throw new ArgumentException("El archivo de credenciales (CredentialsFile) no está configurado correctamente.");
-        }
-        if (string.IsNullOrWhiteSpace(userToImpersonate))
-        {
-            _logger.LogError("El usuario a suplantar (UserToImpersonate) no está configurado.");
-            throw new ArgumentException("El usuario a suplantar (UserToImpersonate) no está configurado correctamente.");
-        }
-
-        GoogleCredential credential;
-        await using (var stream = new FileStream(credentialsFilePath, FileMode.Open, FileAccess.Read))
-        {
-            credential = GoogleCredential.FromStream(stream)
-                .CreateScoped(GmailService.Scope.GmailSend)
-                .CreateWithUser(userToImpersonate);
-        }
-        return new GmailService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = credential,
-            ApplicationName = "bbbAPIGL API"
-        });
-    }
-
+    /// <summary>
+    /// Actualiza un evento de calendario existente.
+    /// </summary>
+    /// <param name="eventoId">El ID del evento de calendario a actualizar.</param>
+    /// <param name="detallesSala">Detalles de la sala para la invitación.</param>
+    /// <param name="correosParticipantes">Lista de correos electrónicos de los participantes.</param>
+    /// <param name="fechaInicio">Fecha de inicio del evento.</param>
+    /// <param name="fechaTermino">Fecha de término del evento.</param>
+    /// <param name="diasSemana">Días de la semana en que se repite el evento (ej. "LU,MI,VI").</param>
+    /// <param name="horaInicio">Hora de inicio del evento.</param>
+    /// <param name="horaTermino">Hora de término del evento.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del evento de calendario actualizado o null si falla.</returns>
     public async Task<string?> ActualizarEventoCalendarioAsync(string eventoId, CrearSalaResponse detallesSala, List<string> correosParticipantes, DateTime fechaInicio, DateTime fechaTermino, string diasSemana, DateTime horaInicio, DateTime horaTermino)
     {
         try
@@ -261,6 +166,7 @@ public class GoogleCalendarService : IEmailService
             _logger.LogInformation("Actualizando invitación de calendario recurrente para la sala {salaNombre}.", detallesSala.NombreSala);
             var service = await GetCalendarServiceAsync();
             var timeZone = _configuration["GoogleCalendarSettings:DefaultTimeZone"] ?? "America/Santiago";
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
 
             var diasRrule = ConvertirDiasParaRRule(diasSemana);
             if (string.IsNullOrEmpty(diasRrule))
@@ -271,7 +177,7 @@ public class GoogleCalendarService : IEmailService
 
             var recurrenceRule = $"RRULE:FREQ=WEEKLY;UNTIL={fechaTermino:yyyyMMddTHHMMssZ};BYDAY={diasRrule}";
 
-            var existingEvent = await service.Events.Get("primary", eventoId).ExecuteAsync();
+            var existingEvent = await service.Events.Get(calendarId, eventoId).ExecuteAsync();
 
             existingEvent.Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}";
             existingEvent.Location = detallesSala.UrlSala;
@@ -287,7 +193,7 @@ public class GoogleCalendarService : IEmailService
 
             _logger.LogDebug("Actualizando evento recurrente en calendario: Summary='{summary}', Start='{start}', End='{end}', Recurrence='{recurrence}'", existingEvent.Summary, existingEvent.Start.DateTimeDateTimeOffset, existingEvent.End.DateTimeDateTimeOffset, existingEvent.Recurrence.FirstOrDefault());
 
-            var request = service.Events.Update(existingEvent, "primary", eventoId);
+            var request = service.Events.Update(existingEvent, calendarId, eventoId);
             request.SendNotifications = true;
 
             var updatedEvent = await request.ExecuteAsync();
@@ -301,8 +207,57 @@ public class GoogleCalendarService : IEmailService
         }
     }
 
-    public async Task EnviarCorreoSimpleAsync(string destinatario, string asunto, string cuerpoHtml)
+    /// <summary>
+    /// Crea un objeto Event base con los detalles comunes para un evento de calendario.
+    /// </summary>
+    /// <param name="detallesSala">Detalles de la sala.</param>
+    /// <param name="correosParticipantes">Lista de correos electrónicos de los participantes.</param>
+    /// <param name="timeZone">La zona horaria del evento.</param>
+    /// <returns>Un objeto Event con los detalles base configurados.</returns>
+    private Event CrearEventoBase(CrearSalaResponse detallesSala, List<string> correosParticipantes, string timeZone)
     {
-        await EnviarCorreosAsync(new List<string> { destinatario }, asunto, cuerpoHtml);
+        return new Event
+        {
+            Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}",
+            Location = detallesSala.UrlSala,
+            Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Moderador: {detallesSala.ClaveModerador}\nClave Espectador: {detallesSala.ClaveEspectador}",
+            Attendees = correosParticipantes.Select(email => new EventAttendee { Email = email }).ToList(),
+            Reminders = new Event.RemindersData { UseDefault = true }
+        };
+    }
+
+    /// <summary>
+    /// Convierte una cadena de días de la semana (ej. "LU,MI,VI") a un formato compatible con RRULE de Google Calendar (ej. "MO,WE,FR").
+    /// </summary>
+    /// <param name="dias">Cadena de días de la semana en español.</param>
+    /// <returns>Cadena de días de la semana en formato RRULE.</returns>
+    private string ConvertirDiasParaRRule(string dias)
+    {
+        var mapeoDias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "LU", "MO" }, { "MA", "TU" }, { "MI", "WE" }, { "JU", "TH" }, { "VI", "FR" }, { "SA", "SA" }, { "DO", "SU" }
+        };
+
+        var diasSplit = dias.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        return string.Join(",", diasSplit
+            .Select(dia => dia.Trim())
+            .Where(dia => mapeoDias.ContainsKey(dia))
+            .Select(dia => mapeoDias[dia]));
+    }
+
+    /// <summary>
+    /// Obtiene una instancia de CalendarService autenticada.
+    /// </summary>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es una instancia de CalendarService.</returns>
+    private async Task<CalendarService> GetCalendarServiceAsync()
+    {
+        _logger.LogInformation("Obteniendo servicio de Google Calendar.");
+        var credential = await GoogleAuthService.GetGoogleCredentialAsync(_configuration, _logger, CalendarService.Scope.Calendar);
+        return new CalendarService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = "bbbAPIGL API"
+        });
     }
 }

@@ -6,6 +6,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 
+/// <summary>
+/// Controlador para la gestión de salas y sus invitaciones.
+/// Autor: Juan Enrique Allende Cifuentes
+/// Fecha de Creación: 02-10-2025
+/// </summary>
 namespace bbbAPIGL.Controllers;
 
 [ApiController]
@@ -20,16 +25,15 @@ public class SalasController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("salas/{nombre}/{emailCreador}")]
+    /// <summary>
+    /// Crea una nueva sala.
+    /// </summary>
+    /// <param name="request">Datos para la creación de la sala.</param>
+    /// <returns>Un objeto CrearSalaResponse con los detalles de la sala creada.</returns>
+    [HttpPost("salas")]
     [ProducesResponseType(typeof(CrearSalaResponse), StatusCodes.Status201Created)]
-    public async Task<IActionResult> CrearSala([FromRoute] string nombre, [FromRoute] string emailCreador, [FromQuery] string? correosParticipantes = null)
+    public async Task<IActionResult> CrearSala([FromBody] CrearSalaRequest request)
     {
-        var request = new CrearSalaRequest
-        {
-            Nombre = nombre,
-            EmailCreador = emailCreador
-        };
-
         if (!ModelState.IsValid) return BadRequest(ModelState);
         try
         {
@@ -43,6 +47,11 @@ public class SalasController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Elimina una sala existente.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala a eliminar.</param>
+    /// <returns>NoContent si la sala se eliminó con éxito, NotFound si no se encontró la sala.</returns>
     [HttpDelete("salas/{roomId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -61,6 +70,11 @@ public class SalasController : ControllerBase
        }
     }
 
+    /// <summary>
+    /// Envía invitaciones para un curso abierto.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Un objeto EnviarInvitacionCursoResponse con el resultado de la operación.</returns>
     [HttpPost("invitaciones/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> EnviarInvitaciones([FromRoute] int idCursoAbierto)
@@ -82,6 +96,12 @@ public class SalasController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Envía una invitación individual para un curso abierto.
+    /// </summary>
+    /// <param name="idAlumno">El ID del alumno.</param>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Un objeto EnviarInvitacionCursoResponse con el resultado de la operación.</returns>
     [HttpPost("invitaciones/individual/{idAlumno}/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> EnviarInvitacionIndividual([FromRoute] string idAlumno, [FromRoute] int idCursoAbierto)
@@ -103,6 +123,12 @@ public class SalasController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Actualiza las invitaciones para un curso abierto.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <param name="requestBody">Datos para actualizar el evento del calendario.</param>
+    /// <returns>Un objeto EnviarInvitacionCursoResponse con el resultado de la operación.</returns>
     [HttpPut("invitaciones/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ActualizarInvitaciones([FromRoute] int idCursoAbierto, [FromBody] ActualizarEventoCalendarioRequest requestBody)
@@ -124,6 +150,11 @@ public class SalasController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Obtiene las URLs de grabación para un curso abierto.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Una lista de objetos GrabacionDto con las URLs de grabación.</returns>
     [HttpGet("grabaciones/{idCursoAbierto}")]
     [ProducesResponseType(typeof(List<GrabacionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

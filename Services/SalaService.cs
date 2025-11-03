@@ -49,8 +49,7 @@ public class SalaService : ISalaService
             ClaveModerador = claveModerador,
             ClaveEspectador = claveEspectador
         };
-/*
-*/
+
         Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
 
         if (newRoomId is null)
