@@ -92,6 +92,67 @@
             <li><strong>Acceso a Grabaciones</strong>: Recuperación de enlaces pre-firmados a grabaciones de sesiones, garantizando un acceso seguro y temporal a los contenidos.</li>
             <li><strong>Arquitectura Modular</strong>: Diseño basado en principios de Clean Architecture y Dependency Injection para facilitar la mantenibilidad y escalabilidad.</li>
         </ul>
+        <h2>Requisitos</h2>
+        <p>Para compilar y ejecutar este proyecto, necesitarás:</p>
+        <ul>
+            <li><strong>SDK de .NET 9.0</strong></li>
+            <li><strong>Bases de Datos</strong>:
+                <ul>
+                    <li>PostgreSQL (para <code>SalaRepository</code>)</li>
+                    <li>MySQL (para <code>MySqlCursoRepository</code>)</li>
+                </ul>
+            </li>
+            <li><strong>Servicios Externos</strong>:
+                <ul>
+                    <li>Cuenta de Google Cloud con API de Calendar y Gmail habilitadas.</li>
+                    <li>Servicio de almacenamiento compatible con S3.</li>
+                </ul>
+            </li>
+        </ul>
+        <p>Las siguientes librerías de .NET son utilizadas:</p>
+        <ul>
+            <li><code>AWSSDK.S3</code></li>
+            <li><code>Google.Apis.Auth</code></li>
+            <li><code>Google.Apis.Calendar.v3</code></li>
+            <li><code>Google.Apis.Gmail.v1</code></li>
+            <li><code>Microsoft.AspNetCore.OpenApi</code></li>
+            <li><code>MimeKit</code></li>
+            <li><code>MySqlConnector</code></li>
+            <li><code>Npgsql</code></li>
+            <li><code>Swashbuckle.AspNetCore</code></li>
+        </ul>
+        <h2>Descarga e Implementación</h2>
+        <p>Sigue estos pasos para obtener y ejecutar el proyecto localmente o en un entorno de producción:</p>
+        <ol>
+            <li><strong>Clonar el Repositorio</strong>:
+                <pre><code>git clone https://github.com/tu-usuario/bbbAPIGL.git
+cd bbbAPIGL</code></pre>
+            </li>
+            <li><strong>Restaurar Dependencias</strong>:
+                <pre><code>dotnet restore</code></pre>
+            </li>
+            <li><strong>Configurar <code>appsettings.json</code> y <code>google-credentials.json</code></strong>:
+                <p>Asegúrate de haber configurado los archivos <code>appsettings.json</code> y <code>google-credentials.json</code> como se describe en la sección de <a href="#configuración">Configuración</a>.</p>
+            </li>
+            <li><strong>Compilar el Proyecto</strong>:
+                <pre><code>dotnet build</code></pre>
+            </li>
+            <li><strong>Ejecutar en Desarrollo (Opcional)</strong>:
+                <p>Para ejecutar la API en un entorno de desarrollo:</p>
+                <pre><code>dotnet run</code></pre>
+                <p>La API estará disponible en las URLs configuradas en <code>launchSettings.json</code> (usualmente <code>https://localhost:7000</code> y <code>http://localhost:5000</code>).</p>
+            </li>
+            <li><strong>Publicar para Producción</strong>:
+                <p>Para preparar la aplicación para un entorno de producción, puedes publicarla:</p>
+                <pre><code>dotnet publish -c Release -o ./publish</code></pre>
+                <p>Esto creará una versión optimizada de la aplicación en la carpeta <code>./publish</code>.</p>
+            </li>
+            <li><strong>Implementación en Producción</strong>:
+                <p>Copia el contenido de la carpeta <code>./publish</code> a tu servidor de producción. Asegúrate de que el entorno de ejecución de .NET 9.0 esté instalado en el servidor. Puedes ejecutar la aplicación directamente desde la carpeta publicada:</p>
+                <pre><code>dotnet bbbAPIGL.dll</code></pre>
+                <p>Para una implementación robusta, considera usar un servidor web como Nginx o Apache como proxy inverso, y un gestor de procesos como Systemd (Linux) o IIS (Windows) para mantener la aplicación en ejecución.</p>
+            </li>
+        </ol>
         <h2>Configuración</h2>
         <p>Para poder ejecutar el proyecto, es necesario configurar las credenciales y ajustes de los servicios externos.</p>
         <ol>
@@ -150,272 +211,245 @@
         </ul>
         <h3>6. Program.cs</h3>
         <p>Configura la inyección de dependencias, registrando los servicios y repositorios con sus respectivas interfaces. También configura el pipeline de peticiones HTTP (Swagger, HTTPS redirection, etc.).</p>
-        <h2>Documentación de Uso</h2>
-        <p>Documentación de la API para Integración con BigBlueButton<br>Versión: 2.1 URL Base: https://bbb.norteamericano.com/apiv2<br>Introducción<br>Esta API proporciona una interfaz para interactuar con la plataforma de conferencias web BigBlueButton (BBB) a través de su sistema de gestión Greenlight. Permite la creación y eliminación de salas, así como el envío de notificaciones a cursos específicos.<br>Toda la comunicación con la API se realiza a través de HTTPS. Los cuerpos de las peticiones y respuestas deben estar en formato JSON.</p>
-        <h3>Endpoints</h3>
-        <h4>1.1 Crear una Nueva Sala</h4>
-        <p>Crea una nueva sala en la base de datos de Greenlight y la asocia a un usuario creador.</p>
+        <h2>Endpoints</h2>
+        <h3>Salas</h3>
+        <h4>POST /salas</h4>
+        <p>Crea una nueva sala de reuniones.</p>
+        <p><strong>Request Body:</strong></p>
+        <pre><code>{
+          "nombre": "string",
+          "emailCreador": "string"
+        }</code></pre>
+        <p><strong>Respuesta Exitosa (201 Created)</strong></p>
+        <pre><code>{
+          "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "urlSala": "https://bbb.example.com/rooms/abc-123-def-456/join",
+          "claveModerador": "g3h4j5k6",
+          "claveEspectador": "a1b2c3d4",
+          "meetingId": "una_cadena_larga_de_40_caracteres",
+          "friendlyId": "abc-123-def-456",
+          "recordId": "una_cadena_larga_de_40_caracteres-1756543210"
+        }</code></pre>
+        <p><strong>Respuestas de Error</strong></p>
         <ul>
-            <li><strong>Método</strong>: <code>POST</code></li>
-            <li><strong>URL</strong>: <code>/salas/{nombre}/{emailCreador}</code></li>
-            <li><strong>URL Completa</strong>: <code>https://bbb.norteamericano.com/apiv2/salas/{nombre}/{emailCreador}</code></li>
-            <li><strong>Parámetros de URL (Path Parameters)</strong>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Campo</th>
-                            <th>Tipo</th>
-                            <th>Requerido</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>nombre</code></td>
-                            <td>string</td>
-                            <td>Sí</td>
-                            <td>El nombre que se le asignará a la sala de conferencia.</td>
-                        </tr>
-                        <tr>
-                            <td><code>emailCreador</code></td>
-                            <td>string</td>
-                            <td>Sí</td>
-                            <td>El correo electrónico del usuario registrado en Greenlight que será el propietario de la sala.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>JSON de Ejemplo (Request)</strong>
-                <pre><code>// No se requiere cuerpo de petición para este endpoint.
-</code></pre>
-            </li>
-            <li><strong>Respuesta Exitosa (201 Created)</strong><br>Devuelve un objeto JSON con todos los detalles de la sala recién creada.
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Campo</th>
-                            <th>Tipo</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>roomId</code></td>
-                            <td>guid</td>
-                            <td>El ID único de la sala en la base de datos de Greenlight (UUID).</td>
-                        </tr>
-                        <tr>
-                            <td><code>urlSala</code></td>
-                            <td>string</td>
-                            <td>La URL directa para unirse a la sala.</td>
-                        </tr>
-                        <tr>
-                            <td><code>claveModerador</code></td>
-                            <td>string</td>
-                            <td>La contraseña para unirse a la sala como moderador.</td>
-                        </tr>
-                        <tr>
-                            <td><code>claveEspectador</code></td>
-                            <td>string</td>
-                            <td>La contraseña para unirse a la sala como espectador.</td>
-                        </tr>
-                        <tr>
-                            <td><code>meetingId</code></td>
-                            <td>string</td>
-                            <td>El ID interno de la reunión utilizado por BigBlueButton.</td>
-                        </tr>
-                        <tr>
-                            <td><code>friendlyId</code></td>
-                            <td>string</td>
-                            <td>El ID "amigable" que forma parte de la URL de la sala.</td>
-                        </tr>
-                        <tr>
-                            <td><code>recordId</code></td>
-                            <td>string</td>
-                            <td>Un identificador único generado para una posible grabación de esta sesión.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>JSON de Ejemplo (Response)</strong>
-                <pre><code>{
-    "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-    "urlSala": "https://bbb.norteamericano.com/rooms/abc-123-def-456/join",
-    "claveModerador": "g3h4j5k6",
-    "claveEspectador": "a1b2c3d4",
-    "meetingId": "una_cadena_larga_de_40_caracteres",
-    "friendlyId": "abc-123-def-456",
-    "recordId": "una_cadena_larga_de_40_caracteres-1756543210"
-}</code></pre>
-            </li>
+            <li><code>400 Bad Request</code>: Si el request es inválido.</li>
+            <li><code>500 Internal Server Error</code>: Error interno del servidor.</li>
         </ul>
-        <h4>1.2 Eliminar una Sala</h4>
-        <p>Elimina permanentemente una sala y todas sus configuraciones asociadas de la base de datos de Greenlight.</p>
+        <hr>
+        <h4>DELETE /salas/{roomId}</h4>
+        <p>Elimina una sala existente.</p>
+        <p><strong>Parámetros de URL (Path Parameters)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Parámetro</th>
+                    <th>Tipo</th>
+                    <th>Requerido</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>roomId</code></td>
+                    <td>guid</td>
+                    <td>Sí</td>
+                    <td>El ID de la sala a eliminar.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Respuesta Exitosa (204 No Content)</strong></p>
+        <p>Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.</p>
+        <p><strong>Respuestas de Error</strong></p>
         <ul>
-            <li><strong>Método</strong>: <code>DELETE</code></li>
-            <li><strong>URL</strong>: <code>/salas/{roomId}</code></li>
-            <li><strong>URL Completa</strong>: <code>https://bbb.norteamericano.com/apiv2/salas/{roomId}</code></li>
-            <li><strong>Parámetros de URL (Path Parameters)</strong>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Parámetro</th>
-                            <th>Tipo</th>
-                            <th>Requerido</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>roomId</code></td>
-                            <td>guid</td>
-                            <td>Sí</td>
-                            <td>El identificador único (UUID) de la sala que se desea eliminar.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>Respuesta Exitosa (204 No Content)</strong><br>Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.</li>
-            <li><strong>Respuestas de Error</strong>
-                <ul>
-                    <li><code>404 Not Found</code>: Si no se encuentra ninguna sala con el <code>roomId</code> proporcionado.</li>
-                    <li><code>500 Internal Server Error</code>: Si ocurre un error en la base de datos durante la eliminación.</li>
-                </ul>
-            </li>
+            <li><code>404 Not Found</code>: Si no se encontró la sala.</li>
+            <li><code>500 Internal Server Error</code>: Error interno del servidor.</li>
         </ul>
-        <h4>2. Enviar Invitaciones a un Curso</h4>
-        <p>Envía un correo electrónico de invitación a todos los alumnos de un curso específico registrado en la base de datos MySQL del cliente.</p>
+        <hr>
+        <h3>Invitaciones</h3>
+        <h4>POST /invitaciones/{idCursoAbierto}</h4>
+        <p>Envía invitaciones para un curso abierto.</p>
+        <p><strong>Parámetros de URL (Path Parameters)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo</th>
+                    <th>Requerido</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>idCursoAbierto</code></td>
+                    <td>integer</td>
+                    <td>Sí</td>
+                    <td>El ID del curso abierto.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>JSON de Ejemplo (Request)</strong></p>
+        <pre><code>// No se requiere cuerpo de petición para este endpoint.</code></pre>
+        <p><strong>Respuesta Exitosa (200 OK)</strong></p>
+        <pre><code>{
+          "mensaje": "Invitaciones enviadas exitosamente.",
+          "correosEnviados": 10
+        }</code></pre>
+        <p><strong>Respuestas de Error</strong></p>
         <ul>
-            <li><strong>Método</strong>: <code>POST</code></li>
-            <li><strong>URL</strong>: <code>/invitaciones/{idCursoAbierto}</code></li>
-            <li><strong>URL Completa</strong>: <code>https://bbb.norteamericano.com/apiv2/invitaciones/{idCursoAbierto}</code></li>
-            <li><strong>Parámetros de URL (Path Parameters)</strong>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Campo</th>
-                            <th>Tipo</th>
-                            <th>Requerido</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>idCursoAbierto</code></td>
-                            <td>integer</td>
-                            <td>Sí</td>
-                            <td>El ID numérico del curso (de la tabla <code>cursosabiertosbbb</code>) al que se enviarán las invitaciones.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>JSON de Ejemplo (Request)</strong>
-                <pre><code>// No se requiere cuerpo de petición para este endpoint.
-</code></pre>
-            </li>
-            <li><strong>Respuesta Exitosa (200 OK)</strong><br>Devuelve un objeto JSON confirmando el resultado de la operación.
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Campo</th>
-                            <th>Tipo</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>mensaje</code></td>
-                            <td>string</td>
-                            <td>Un mensaje de confirmación.</td>
-                        </tr>
-                        <tr>
-                            <td><code>correosEnviados</code></td>
-                            <td>integer</td>
-                            <td>El número de correos que se enviaron a los alumnos del curso.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>JSON de Ejemplo (Response)</strong>
-                <pre><code>{ "mensaje": "Invitaciones enviadas exitosamente.", "correosEnviados": 42 }</code></pre>
-            </li>
-            <li><strong>Respuestas de Error</strong>
-                <ul>
-                    <li><code>404 Not Found</code>: Si no se encuentra el curso o la sala asociada en la base de datos MySQL.</li>
-                </ul>
-            </li>
+            <li><code>400 Bad Request</code>: Si el request es inválido.</li>
+            <li><code>500 Internal Server Error</code>: Error interno del servidor.</li>
         </ul>
-        <h4>3. Obtener Grabaciones de un Curso 🎥</h4>
-        <p>Obtiene una lista de todas las grabaciones disponibles para un curso específico, incluyendo su URL de reproducción y fecha de creación.</p>
+        <hr>
+        <h4>POST /invitaciones/individual/{idAlumno}/{idCursoAbierto}</h4>
+        <p>Envía una invitación individual para un curso abierto.</p>
+        <p><strong>Parámetros de URL (Path Parameters)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo</th>
+                    <th>Requerido</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>idAlumno</code></td>
+                    <td>string</td>
+                    <td>Sí</td>
+                    <td>El ID del alumno.</td>
+                </tr>
+                <tr>
+                    <td><code>idCursoAbierto</code></td>
+                    <td>integer</td>
+                    <td>Sí</td>
+                    <td>El ID del curso abierto.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>JSON de Ejemplo (Request)</strong></p>
+        <pre><code>// No se requiere cuerpo de petición para este endpoint.</code></pre>
+        <p><strong>Respuesta Exitosa (200 OK)</strong></p>
+        <pre><code>{
+          "mensaje": "Invitacion enviada exitosamente.",
+          "correosEnviados": 1
+        }</code></pre>
+        <p><strong>Respuestas de Error</strong></p>
         <ul>
-            <li><strong>Método</strong>: <code>GET</code></li>
-            <li><strong>URL</strong>: <code>/grabaciones/{idCursoAbierto}</code></li>
-            <li><strong>URL Completa</strong>: <code>https://bbb.norteamericano.com/apiv2/grabaciones/{idCursoAbierto}</code></li>
-            <li><strong>Parámetros de URL (Path Parameters)</strong>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Parámetro</th>
-                            <th>Tipo</th>
-                            <th>Requerido</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>idCursoAbierto</code></td>
-                            <td>integer</td>
-                            <td>Sí</td>
-                            <td>El ID numérico del curso del que se desean obtener las grabaciones.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>Respuesta Exitosa (200 OK)</strong><br>Devuelve un arreglo de objetos JSON, donde cada objeto representa una grabación. El arreglo está ordenado de la más reciente a la más antigua. Si no hay grabaciones, devuelve un arreglo vacío <code>[]</code>.
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Campo</th>
-                            <th>Tipo</th>
-                            <th>Descripción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>recordId</code></td>
-                            <td>string</td>
-                            <td>El ID único de la grabación, utilizado para construir la URL.</td>
-                        </tr>
-                        <tr>
-                            <td><code>playbackUrl</code></td>
-                            <td>string</td>
-                            <td>La URL completa para ver la grabación en un navegador.</td>
-                        </tr>
-                        <tr>
-                            <td><code>createdAt</code></td>
-                            <td>string</td>
-                            <td>La fecha en que se creó la grabación, en formato <code>YYYY-MM-DD</code>.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </li>
-            <li><strong>JSON de Ejemplo (Response)</strong>
-                <pre><code>[
-    {
-        "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-        "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-        "createdAt": "2025-09-12"
-    },
-    {
-        "recordId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-        "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-        "createdAt": "2025-09-10"
-    }
-]</code></pre>
-            </li>
+            <li><code>400 Bad Request</code>: Si el request es inválido.</li>
+            <li><code>500 Internal Server Error</code>: Error interno del servidor.</li>
+        </ul>
+        <hr>
+        <h4>PUT /invitaciones/{idCursoAbierto}</h4>
+        <p>Actualiza las invitaciones para un curso abierto.</p>
+        <p><strong>Parámetros de URL (Path Parameters)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Campo</th>
+                    <th>Tipo</th>
+                    <th>Requerido</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>idCursoAbierto</code></td>
+                    <td>integer</td>
+                    <td>Sí</td>
+                    <td>El ID del curso abierto.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Request Body:</strong></p>
+        <pre><code>{
+          "idCursoAbierto": 0,
+          "fechaInicio": "2025-11-05T15:07:26.158Z",
+          "fechaTermino": "2025-11-05T15:07:26.158Z",
+          "dias": [
+            "Lunes"
+          ],
+          "horaInicio": "string",
+          "horaTermino": "string"
+        }</code></pre>
+        <p><strong>Respuesta Exitosa (200 OK)</strong></p>
+        <pre><code>{
+          "mensaje": "Invitaciones actualizadas exitosamente.",
+          "correosEnviados": 10
+        }</code></pre>
+        <p><strong>Respuestas de Error</strong></p>
+        <ul>
+            <li><code>400 Bad Request</code>: Si el request es inválido.</li>
+            <li><code>500 Internal Server Error</code>: Error interno del servidor.</li>
+        </ul>
+        <hr>
+        <h3>Grabaciones</h3>
+        <h4>GET /grabaciones/{idCursoAbierto}</h4>
+        <p>Obtiene las URLs de grabación para un curso abierto.</p>
+        <p><strong>Parámetros de URL (Path Parameters)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Parámetro</th>
+                    <th>Tipo</th>
+                    <th>Requerido</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>idCursoAbierto</code></td>
+                    <td>integer</td>
+                    <td>Sí</td>
+                    <td>El ID del curso abierto.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Respuesta Exitosa (200 OK)</strong></p>
+        <pre><code>[
+          {
+            "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
+            "playbackUrl": "https://bbb.example.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
+            "createdAt": "2025-09-12"
+          }
+        ]
+        </code></pre>
+        <p><strong>Respuestas de Error</strong></p>
+        <ul>
+            <li><code>404 Not Found</code>: Si no se encontró el curso.</li>
+        </ul>
+        <hr>
+        <h3>Cursos</h3>
+        <h4>DELETE /cursos/{idCursoAbierto}</h4>
+        <p>Elimina un curso abierto y todas sus invitaciones asociadas.</p>
+        <p><strong>Parámetros de URL (Path Parameters)</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Parámetro</th>
+                    <th>Tipo</th>
+                    <th>Requerido</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>idCursoAbierto</code></td>
+                    <td>integer</td>
+                    <td>Sí</td>
+                    <td>El ID del curso abierto a eliminar.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p><strong>Respuesta Exitosa (204 No Content)</strong></p>
+        <p>Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.</p>
+        <p><strong>Respuestas de Error</strong></p>
+        <ul>
+            <li><code>404 Not Found</code>: Si no se encontró el curso.</li>
+            <li><code>500 Internal Server Error</code>: Error interno del servidor.</li>
         </ul>
         <h2>Historial de Cambios</h2>
-        <h3>05-11-2025 (Asistente Gemini)</h3>
+        <h3>05-11-2025</h3>
         <ul>
             <li><strong>Mejora en la Lógica de Invitaciones Individuales</strong>: Se ha mejorado la lógica de envío de invitaciones individuales (<code>EnviarInvitacionIndividualAsync</code>). Ahora, si un curso ya tiene un evento de calendario creado, se añadirá al nuevo alumno a ese evento existente en lugar de crear uno nuevo. Si el curso no tiene un evento, se creará uno con el primer alumno invitado y se guardará el ID del evento para futuras invitaciones, asegurando que todos los alumnos de un curso compartan el mismo evento de calendario.</li>
             <li><strong>Corrección de Error en Base de Datos MySQL</strong>: Se solucionó un error crítico que ocurría al intentar leer la tabla <code>cursosabiertosbbbinvitacion</code> debido a que el código esperaba una columna <code>idCalendario</code> que no existía en la base de datos. Se han modificado los métodos del repositorio (<code>MySqlCursoRepository</code>) para que ya no intenten acceder a esta columna, evitando el fallo de la aplicación.</li>
@@ -424,8 +458,7 @@
             <li><strong>Mejoras Internas y Corrección de Advertencias</strong>: Se realizaron varias mejoras menores en el código y se corrigieron advertencias del compilador para mejorar la calidad y mantenibilidad del código.</li>
         </ul>
         <h2>Estructura de Carpetas</h2>
-        <pre><code>bbbAPIGL\
-├───.gitignore
+        <pre><code>bbbAPIGL\n├───.gitignore
 ├───appsettings.example.json
 ├───appsettings.Production.json
 ├───bbbAPIGL.csproj

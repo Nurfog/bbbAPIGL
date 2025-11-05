@@ -18,6 +18,74 @@ El objetivo principal es simplificar la administración de entornos de aprendiza
 -   **Acceso a Grabaciones**: Recuperación de enlaces pre-firmados a grabaciones de sesiones, garantizando un acceso seguro y temporal a los contenidos.
 -   **Arquitectura Modular**: Diseño basado en principios de Clean Architecture y Dependency Injection para facilitar la mantenibilidad y escalabilidad.
 
+## Requisitos
+
+Para compilar y ejecutar este proyecto, necesitarás:
+
+-   **SDK de .NET 9.0**
+-   **Bases de Datos**:
+    -   PostgreSQL (para `SalaRepository`)
+    -   MySQL (para `MySqlCursoRepository`)
+-   **Servicios Externos**:
+    -   Cuenta de Google Cloud con API de Calendar y Gmail habilitadas.
+    -   Servicio de almacenamiento compatible con S3.
+
+Las siguientes librerías de .NET son utilizadas:
+
+-   `AWSSDK.S3`
+-   `Google.Apis.Auth`
+-   `Google.Apis.Calendar.v3`
+-   `Google.Apis.Gmail.v1`
+-   `Microsoft.AspNetCore.OpenApi`
+-   `MimeKit`
+-   `MySqlConnector`
+-   `Npgsql`
+-   `Swashbuckle.AspNetCore`
+
+## Descarga e Implementación
+
+Sigue estos pasos para obtener y ejecutar el proyecto localmente o en un entorno de producción:
+
+1.  **Clonar el Repositorio**:
+    ```bash
+    git clone https://github.com/tu-usuario/bbbAPIGL.git
+    cd bbbAPIGL
+    ```
+
+2.  **Restaurar Dependencias**:
+    ```bash
+    dotnet restore
+    ```
+
+3.  **Configurar `appsettings.json` y `google-credentials.json`**:
+    Asegúrate de haber configurado los archivos `appsettings.json` y `google-credentials.json` como se describe en la sección de [Configuración](#configuración).
+
+4.  **Compilar el Proyecto**:
+    ```bash
+    dotnet build
+    ```
+
+5.  **Ejecutar en Desarrollo (Opcional)**:
+    Para ejecutar la API en un entorno de desarrollo:
+    ```bash
+    dotnet run
+    ```
+    La API estará disponible en las URLs configuradas en `launchSettings.json` (usualmente `https://localhost:7000` y `http://localhost:5000`).
+
+6.  **Publicar para Producción**:
+    Para preparar la aplicación para un entorno de producción, puedes publicarla:
+    ```bash
+    dotnet publish -c Release -o ./publish
+    ```
+    Esto creará una versión optimizada de la aplicación en la carpeta `./publish`.
+
+7.  **Implementación en Producción**:
+    Copia el contenido de la carpeta `./publish` a tu servidor de producción. Asegúrate de que el entorno de ejecución de .NET 9.0 esté instalado en el servidor. Puedes ejecutar la aplicación directamente desde la carpeta publicada:
+    ```bash
+    dotnet bbbAPIGL.dll
+    ```
+    Para una implementación robusta, considera usar un servidor web como Nginx o Apache como proxy inverso, y un gestor de procesos como Systemd (Linux) o IIS (Windows) para mantener la aplicación en ejecución.
+
 ## Configuración
 
 Para poder ejecutar el proyecto, es necesario configurar las credenciales y ajustes de los servicios externos.
@@ -84,7 +152,7 @@ Configura la inyección de dependencias, registrando los servicios y repositorio
 ## Documentación de Uso
 
 Documentación de la API para Integración con BigBlueButton
-Versión: 2.1 URL Base: https://bbb.norteamericano.com/apiv2
+Versión: 2.1 www.example.com/apiv2/
 Introducción
 Esta API proporciona una interfaz para interactuar con la plataforma de conferencias web BigBlueButton (BBB) a través de su sistema de gestión Greenlight. Permite la creación y eliminación de salas, así como el envío de notificaciones a cursos específicos.
 Toda la comunicación con la API se realiza a través de HTTPS. Los cuerpos de las peticiones y respuestas deben estar en formato JSON.
@@ -93,15 +161,15 @@ Toda la comunicación con la API se realiza a través de HTTPS. Los cuerpos de l
 #### 1.1 Crear una Nueva Sala
 Crea una nueva sala en la base de datos de Greenlight y la asocia a un usuario creador.
 -   **Método**: `POST`
--   **URL**: `/salas/{nombre}/{emailCreador}`
--   **URL Completa**: `https://bbb.norteamericano.com/apiv2/salas/{nombre}/{emailCreador}`
--   **Parámetros de URL (Path Parameters)**
-    | Campo        | Tipo   | Requerido | Descripción                                                              |
-    |--------------|--------|----------|--------------------------------------------------------------------------|
-    | `nombre`       | string | Sí       | El nombre que se le asignará a la sala de conferencia.                   |
-    | `emailCreador` | string | Sí       | El correo electrónico del usuario registrado en Greenlight que será el propietario de la sala. |
-
-
+-   **URL**: `/salas`
+-   **URL Completa**: `www.example.com/apiv2/salas`
+-   **Cuerpo de la petición (Request Body)**
+    ```json
+    {
+        "nombre": "string",
+        "emailCreador": "string"
+    }
+    ```
 -   **Respuesta Exitosa (201 Created)**
     Devuelve un objeto JSON con todos los detalles de la sala recién creada.
     | Campo           | Tipo   | Descripción                                                              |
@@ -118,7 +186,7 @@ Crea una nueva sala en la base de datos de Greenlight y la asocia a un usuario c
     ```json
     {
         "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-        "urlSala": "https://bbb.norteamericano.com/rooms/abc-123-def-456/join",
+        "urlSala": "www.example.com/rooms/abc-123-def-456/join",
         "claveModerador": "g3h4j5k6",
         "claveEspectador": "a1b2c3d4",
         "meetingId": "una_cadena_larga_de_40_caracteres",
@@ -131,7 +199,7 @@ Crea una nueva sala en la base de datos de Greenlight y la asocia a un usuario c
 Elimina permanentemente una sala y todas sus configuraciones asociadas de la base de datos de Greenlight.
 -   **Método**: `DELETE`
 -   **URL**: `/salas/{roomId}`
--   **URL Completa**: `https://bbb.norteamericano.com/apiv2/salas/{roomId}`
+-   **URL Completa**: `www.example.com/apiv2/salas/{roomId}`
 -   **Parámetros de URL (Path Parameters)**
     | Parámetro | Tipo | Requerido | Descripción                                            |
     |-----------|------|----------|--------------------------------------------------------|
@@ -147,7 +215,7 @@ Elimina permanentemente una sala y todas sus configuraciones asociadas de la bas
 Envía un correo electrónico de invitación a todos los alumnos de un curso específico registrado en la base de datos MySQL del cliente.
 -   **Método**: `POST`
 -   **URL**: `/invitaciones/{idCursoAbierto}`
--   **URL Completa**: `https://bbb.norteamericano.com/apiv2/invitaciones/{idCursoAbierto}`
+-   **URL Completa**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
 -   **Parámetros de URL (Path Parameters)**
     | Campo            | Tipo    | Requerido | Descripción                                                              |
     |------------------|---------|----------|--------------------------------------------------------------------------|
@@ -174,11 +242,85 @@ Envía un correo electrónico de invitación a todos los alumnos de un curso esp
 -   **Respuestas de Error**
     -   `404 Not Found`: Si no se encuentra el curso o la sala asociada en la base de datos MySQL.
 
+#### 2.1 Enviar Invitación Individual a un Curso
+Envía un correo electrónico de invitación a un alumno específico de un curso registrado en la base de datos MySQL del cliente.
+-   **Método**: `POST`
+-   **URL**: `/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
+-   **URL Completa**: `www.example.com/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
+-   **Parámetros de URL (Path Parameters)**
+    | Campo            | Tipo    | Requerido | Descripción                                                              |
+    |------------------|---------|----------|--------------------------------------------------------------------------|
+    | `idAlumno` | string | Sí       | El ID del alumno al que se le enviará la invitación. |
+    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso (de la tabla `cursosabiertosbbb`) al que se enviará la invitación. |
+
+-   **JSON de Ejemplo (Request)**
+    ```json
+    // No se requiere cuerpo de petición para este endpoint.
+    ```
+-   **Respuesta Exitosa (200 OK)**
+    Devuelve un objeto JSON confirmando el resultado de la operación.
+    | Campo            | Tipo    | Descripción                               |
+    |------------------|---------|-------------------------------------------|
+    | `mensaje`          | string  | Un mensaje de confirmación.               |
+    | `correosEnviados` | integer | El número de correos que se enviaron. |
+
+-   **JSON de Ejemplo (Response)**
+    ```json
+    {
+        "mensaje": "Invitacion enviada exitosamente.",
+        "correosEnviados": 1
+    }
+    ```
+-   **Respuestas de Error**
+    -   `400 Bad Request`: Si el request es inválido.
+    -   `500 Internal Server Error`: Error interno del servidor.
+
+#### 2.2 Actualizar Invitaciones de un Curso
+Actualiza las invitaciones de un curso abierto.
+-   **Método**: `PUT`
+-   **URL**: `/invitaciones/{idCursoAbierto}`
+-   **URL Completa**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
+-   **Parámetros de URL (Path Parameters)**
+    | Campo            | Tipo    | Requerido | Descripción                                                              |
+    |------------------|---------|----------|--------------------------------------------------------------------------|
+    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso (de la tabla `cursosabiertosbbb`) para el que se actualizarán las invitaciones. |
+
+-   **Cuerpo de la petición (Request Body)**
+    ```json
+    {
+        "idCursoAbierto": 0,
+        "fechaInicio": "2025-11-05T15:07:26.158Z",
+        "fechaTermino": "2025-11-05T15:07:26.158Z",
+        "dias": [
+            "Lunes"
+        ],
+        "horaInicio": "string",
+        "horaTermino": "string"
+    }
+    ```
+-   **Respuesta Exitosa (200 OK)**
+    Devuelve un objeto JSON confirmando el resultado de la operación.
+    | Campo            | Tipo    | Descripción                               |
+    |------------------|---------|-------------------------------------------|
+    | `mensaje`          | string  | Un mensaje de confirmación.               |
+    | `correosEnviados` | integer | El número de correos que se actualizaron. |
+
+-   **JSON de Ejemplo (Response)**
+    ```json
+    {
+        "mensaje": "Invitaciones actualizadas exitosamente.",
+        "correosEnviados": 10
+    }
+    ```
+-   **Respuestas de Error**
+    -   `400 Bad Request`: Si el request es inválido.
+    -   `500 Internal Server Error`: Error interno del servidor.
+
 #### 3. Obtener Grabaciones de un Curso 🎥
 Obtiene una lista de todas las grabaciones disponibles para un curso específico, incluyendo su URL de reproducción y fecha de creación.
 -   **Método**: `GET`
 -   **URL**: `/grabaciones/{idCursoAbierto}`
--   **URL Completa**: `https://bbb.norteamericano.com/apiv2/grabaciones/{idCursoAbierto}`
+-   **URL Completa**: `www.example.com/apiv2/grabaciones/{idCursoAbierto}`
 -   **Parámetros de URL (Path Parameters)**
     | Parámetro        | Tipo    | Requerido | Descripción                                                              |
     |------------------|---------|----------|--------------------------------------------------------------------------|
@@ -197,20 +339,36 @@ Obtiene una lista de todas las grabaciones disponibles para un curso específico
     [
         {
             "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-            "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
+            "playbackUrl": "www.example.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
             "createdAt": "2025-09-12"
         },
         {
             "recordId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-            "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
+            "playbackUrl": "www.example.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
             "createdAt": "2025-09-10"
         }
     ]
     ```
 
+#### 4. Eliminar un Curso
+Elimina un curso abierto y todas sus invitaciones asociadas.
+-   **Método**: `DELETE`
+-   **URL**: `/cursos/{idCursoAbierto}`
+-   **URL Completa**: `www.example.com/apiv2/cursos/{idCursoAbierto}`
+-   **Parámetros de URL (Path Parameters)**
+    | Parámetro | Tipo | Requerido | Descripción                                            |
+    |-----------|------|----------|--------------------------------------------------------|
+    | `idCursoAbierto`    | integer | Sí       | El identificador único del curso que se desea eliminar. |
+
+-   **Respuesta Exitosa (204 No Content)**
+    Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.
+-   **Respuestas de Error**
+    -   `404 Not Found`: Si no se encuentra el curso con el `idCursoAbierto` proporcionado.
+    -   `500 Internal Server Error`: Si ocurre un error en la base de datos durante la eliminación.
+
 ## Historial de Cambios
 
-### 05-11-2025 (Asistente Gemini)
+### 05-11-2025
 
 -   **Mejora en la Lógica de Invitaciones Individuales**: Se ha mejorado la lógica de envío de invitaciones individuales (`EnviarInvitacionIndividualAsync`). Ahora, si un curso ya tiene un evento de calendario creado, se añadirá al nuevo alumno a ese evento existente en lugar de crear uno nuevo. Si el curso no tiene un evento, se creará uno con el primer alumno invitado y se guardará el ID del evento para futuras invitaciones, asegurando que todos los alumnos de un curso compartan el mismo evento de calendario.
 -   **Corrección de Error en Base de Datos MySQL**: Se solucionó un error crítico que ocurría al intentar leer la tabla `cursosabiertosbbbinvitacion` debido a que el código esperaba una columna `idCalendario` que no existía en la base de datos. Se han modificado los métodos del repositorio (`MySqlCursoRepository`) para que ya no intenten acceder a esta columna, evitando el fallo de la aplicación.

@@ -8,8 +8,6 @@ using Microsoft.AspNetCore.Http;
 
 /// <summary>
 /// Controlador para la gestión de salas y sus invitaciones.
-/// Autor: Juan Enrique Allende Cifuentes
-/// Fecha de Creación: 02-10-2025
 /// </summary>
 namespace bbbAPIGL.Controllers;
 
