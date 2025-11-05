@@ -414,6 +414,15 @@
 ]</code></pre>
             </li>
         </ul>
+        <h2>Historial de Cambios</h2>
+        <h3>05-11-2025 (Asistente Gemini)</h3>
+        <ul>
+            <li><strong>Mejora en la Lógica de Invitaciones Individuales</strong>: Se ha mejorado la lógica de envío de invitaciones individuales (<code>EnviarInvitacionIndividualAsync</code>). Ahora, si un curso ya tiene un evento de calendario creado, se añadirá al nuevo alumno a ese evento existente en lugar de crear uno nuevo. Si el curso no tiene un evento, se creará uno con el primer alumno invitado y se guardará el ID del evento para futuras invitaciones, asegurando que todos los alumnos de un curso compartan el mismo evento de calendario.</li>
+            <li><strong>Corrección de Error en Base de Datos MySQL</strong>: Se solucionó un error crítico que ocurría al intentar leer la tabla <code>cursosabiertosbbbinvitacion</code> debido a que el código esperaba una columna <code>idCalendario</code> que no existía en la base de datos. Se han modificado los métodos del repositorio (<code>MySqlCursoRepository</code>) para que ya no intenten acceder a esta columna, evitando el fallo de la aplicación.</li>
+            <li><strong>Corrección de Codificación en Correos Electrónicos</strong>: Se solucionó un problema en el servicio de envío de correos (<code>GmailService</code>) que causaba que los acentos y caracteres especiales no se mostraran correctamente en las plantillas de correo. Se ha refactorizado la construcción de los mensajes para asegurar la codificación UTF-8.</li>
+            <li><strong>Mejora en Plantilla de Correo</strong>: Se actualizó la plantilla de correo para que muestre la URL de la sala de reuniones en lugar de su ID interno, haciendo la invitación más clara para el usuario final.</li>
+            <li><strong>Mejoras Internas y Corrección de Advertencias</strong>: Se realizaron varias mejoras menores en el código y se corrigieron advertencias del compilador para mejorar la calidad y mantenibilidad del código.</li>
+        </ul>
         <h2>Estructura de Carpetas</h2>
         <pre><code>bbbAPIGL\
 ├───.gitignore

@@ -208,6 +208,16 @@ Obtiene una lista de todas las grabaciones disponibles para un curso específico
     ]
     ```
 
+## Historial de Cambios
+
+### 05-11-2025 (Asistente Gemini)
+
+-   **Mejora en la Lógica de Invitaciones Individuales**: Se ha mejorado la lógica de envío de invitaciones individuales (`EnviarInvitacionIndividualAsync`). Ahora, si un curso ya tiene un evento de calendario creado, se añadirá al nuevo alumno a ese evento existente en lugar de crear uno nuevo. Si el curso no tiene un evento, se creará uno con el primer alumno invitado y se guardará el ID del evento para futuras invitaciones, asegurando que todos los alumnos de un curso compartan el mismo evento de calendario.
+-   **Corrección de Error en Base de Datos MySQL**: Se solucionó un error crítico que ocurría al intentar leer la tabla `cursosabiertosbbbinvitacion` debido a que el código esperaba una columna `idCalendario` que no existía en la base de datos. Se han modificado los métodos del repositorio (`MySqlCursoRepository`) para que ya no intenten acceder a esta columna, evitando el fallo de la aplicación.
+-   **Corrección de Codificación en Correos Electrónicos**: Se solucionó un problema en el servicio de envío de correos (`GmailService`) que causaba que los acentos y caracteres especiales no se mostraran correctamente en las plantillas de correo. Se ha refactorizado la construcción de los mensajes para asegurar la codificación UTF-8.
+-   **Mejora en Plantilla de Correo**: Se actualizó la plantilla de correo para que muestre la URL de la sala de reuniones en lugar de su ID interno, haciendo la invitación más clara para el usuario final.
+-   **Mejoras Internas y Corrección de Advertencias**: Se realizaron varias mejoras menores en el código y se corrigieron advertencias del compilador para mejorar la calidad y mantenibilidad del código.
+
 ## Estructura de Carpetas
 
 ```

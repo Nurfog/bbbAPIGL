@@ -240,12 +240,11 @@ public class MySqlCursoRepository : ICursoRepository
             // First, try to update the existing invitation
             string updateSql = @"
                 UPDATE cursosabiertosbbbinvitacion 
-                SET url = @Url, idCalendario = @IdCalendario
+                SET url = @Url
                 WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb AND idAlumno = @IdAlumno";
 
             await using var updateCommand = new MySqlCommand(updateSql, connection);
             updateCommand.Parameters.AddWithValue("@Url", invitacion.Url);
-            updateCommand.Parameters.AddWithValue("@IdCalendario", invitacion.IdCalendario);
             updateCommand.Parameters.AddWithValue("@IdCursoAbiertoBbb", invitacion.IdCursoAbiertoBbb);
             updateCommand.Parameters.AddWithValue("@IdAlumno", invitacion.IdAlumno);
 
@@ -256,14 +255,13 @@ public class MySqlCursoRepository : ICursoRepository
             {
                 string insertSql = @"
                     INSERT INTO cursosabiertosbbbinvitacion 
-                    (idcursosabiertosbbb, idAlumno, url, idCalendario) 
-                    VALUES (@IdCursoAbiertoBbb, @IdAlumno, @Url, @IdCalendario)";
+                    (idcursosabiertosbbb, idAlumno, url) 
+                    VALUES (@IdCursoAbiertoBbb, @IdAlumno, @Url)";
 
                 await using var insertCommand = new MySqlCommand(insertSql, connection);
                 insertCommand.Parameters.AddWithValue("@IdCursoAbiertoBbb", invitacion.IdCursoAbiertoBbb);
                 insertCommand.Parameters.AddWithValue("@IdAlumno", invitacion.IdAlumno);
                 insertCommand.Parameters.AddWithValue("@Url", invitacion.Url);
-                insertCommand.Parameters.AddWithValue("@IdCalendario", invitacion.IdCalendario);
 
                 await insertCommand.ExecuteNonQueryAsync();
             }
@@ -289,7 +287,7 @@ public class MySqlCursoRepository : ICursoRepository
             await connection.OpenAsync();
 
             const string sql = @"
-                SELECT idcursosabiertosbbb, idAlumno, url, idCalendario 
+                SELECT idcursosabiertosbbb, idAlumno, url 
                 FROM cursosabiertosbbbinvitacion 
                 WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb AND idAlumno = @IdAlumno";
 
@@ -306,7 +304,7 @@ public class MySqlCursoRepository : ICursoRepository
                     IdCursoAbiertoBbb = reader.GetInt32("idcursosabiertosbbb"),
                     IdAlumno = reader.GetString("idAlumno"),
                     Url = reader.GetString("url"),
-                    IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
+                    IdCalendario = null,
                     FechaCreacion = default // Not retrieved from DB
                 };
             }
@@ -361,7 +359,7 @@ public class MySqlCursoRepository : ICursoRepository
         await connection.OpenAsync();
 
         const string sql = @"
-            SELECT idcursosabiertosbbb, idAlumno, url, idCalendario
+            SELECT idcursosabiertosbbb, idAlumno, url
             FROM cursosabiertosbbbinvitacion
             WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb";
 
@@ -377,7 +375,7 @@ public class MySqlCursoRepository : ICursoRepository
                 IdCursoAbiertoBbb = reader.GetInt32("idcursosabiertosbbb"),
                 IdAlumno = reader.GetString("idAlumno"),
                 Url = reader.GetString("url"),
-                IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
+                IdCalendario = null,
                 FechaCreacion = default // Not retrieved from DB
             });
         }

@@ -45,24 +45,28 @@ public class GmailService : IEmailService
                 throw new System.ArgumentException("El correo del remitente (UserToImpersonate) no está configurado correctamente.");
             }
 
-            var mailMessage = new System.Net.Mail.MailMessage
+            var mimeMessage = new MimeMessage();
+            mimeMessage.From.Add(new MailboxAddress("Notificaciones", fromEmail));
+            foreach (var email in destinatarios)
             {
-                From = new System.Net.Mail.MailAddress(fromEmail),
-                Subject = asunto,
-                Body = cuerpoHtml,
-                IsBodyHtml = true
-            };
-            destinatarios.ForEach(email => mailMessage.Bcc.Add(email));
+                mimeMessage.Bcc.Add(new MailboxAddress("", email));
+            }
+            mimeMessage.Subject = asunto;
 
-            var mimeMessage = MimeKit.MimeMessage.CreateFromMailMessage(mailMessage);
-            
-            var rawMessage = System.Convert.ToBase64String(Encoding.UTF8.GetBytes(mimeMessage.ToString()))
-                .Replace('+', '-')
-                .Replace('/', '_')
-                .Replace("=", "");
-            
-            var message = new Message { Raw = rawMessage };
-            await service.Users.Messages.Send(message, fromEmail).ExecuteAsync();
+            var bodyBuilder = new BodyBuilder { HtmlBody = cuerpoHtml };
+            mimeMessage.Body = bodyBuilder.ToMessageBody();
+
+            using (var stream = new System.IO.MemoryStream())
+            {
+                mimeMessage.WriteTo(stream);
+                var rawMessage = System.Convert.ToBase64String(stream.ToArray())
+                    .Replace('+', '-')
+                    .Replace('/', '_')
+                    .Replace("=", "");
+                
+                var message = new Message { Raw = rawMessage };
+                await service.Users.Messages.Send(message, "me").ExecuteAsync();
+            }
             _logger.LogInformation("Correo enviado exitosamente.");
         }
         catch (System.Exception ex)

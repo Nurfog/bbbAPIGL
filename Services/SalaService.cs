@@ -169,9 +169,9 @@ public class SalaService : ISalaService
                 var asunto = $"Recordatorio: Tu clase de {sala.NombreSala}";
                 var replacements = new Dictionary<string, string>
                 {
-                    { "[**VAR_OC**]", sala.MeetingId ?? string.Empty },
+                    { "[**VAR_OC**]", sala.UrlSala ?? string.Empty },
                     { "[**VAR_F**]", sala.FechaInicio.ToString("dd-MM-yyyy") },
-                    { "[**VAR_T**]", sala.NombreSala },
+                    { "[**VAR_T**]", sala.NombreSala ?? string.Empty },
                     { "[**VAR_TD**]", sala.ClaveEspectador ?? string.Empty },
                 };
                 await _emailService.EnviarCorreoConPlantillaAsync(alumno.Email, asunto, replacements);
@@ -200,7 +200,6 @@ public class SalaService : ISalaService
                             IdCursoAbiertoBbb = request.IdCursoAbierto,
                             IdAlumno = alumno.IdAlumno,
                             Url = detallesSalaResponse.UrlSala,
-                            IdCalendario = idEventoCalendario,
                             FechaCreacion = DateTime.UtcNow
                         };
                         await _cursoRepository.GuardarInvitacionAsync(nuevaInvitacion);
@@ -236,18 +235,13 @@ public class SalaService : ISalaService
 
     private static string GeneraFriendlyId()
     {
-        const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-        var part1 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
-        var part2 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
-        var part3 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
-        var part4 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
-        return $"{part1}-{part2}-{part3}-{part4}";
+        return string.Join("-", Enumerable.Range(0, 4).Select(_ => GeneraRandomPassword(3)));
     }
 
     private static string GeneraRandomPassword(int length)
     {
         const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-        return new string(Enumerable.Repeat(chars, length).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
+        return new string(Enumerable.Range(0, length).Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
     
     /// <summary>
@@ -346,9 +340,9 @@ public class SalaService : ISalaService
             var asunto = $"Recordatorio: Tu clase de {sala.NombreSala}";
             var replacements = new Dictionary<string, string>
             {
-                { "[**VAR_OC**]", sala.MeetingId ?? string.Empty },
+                { "[**VAR_OC**]", sala.UrlSala ?? string.Empty },
                 { "[**VAR_F**]", sala.FechaInicio.ToString("dd-MM-yyyy") },
-                { "[**VAR_T**]", sala.NombreSala },
+                { "[**VAR_T**]", sala.NombreSala ?? string.Empty },
                 { "[**VAR_TD**]", sala.ClaveEspectador ?? string.Empty },
             };
             await _emailService.EnviarCorreoConPlantillaAsync(correoAlumno, asunto, replacements);
@@ -363,14 +357,46 @@ public class SalaService : ISalaService
             try
             {
                 _logger.LogInformation("Enviando nueva invitación de calendario para el alumno {idAlumno}.", request.IdAlumno);
-                var idEventoCalendario = await _calendarService.EnviarInvitacionCalendarioAsync(
-                    detallesSalaResponse, 
-                    new List<string> { correoAlumno }, 
-                    sala.FechaInicio, 
-                    sala.FechaTermino, 
-                    sala.Dias, 
-                    sala.HoraInicio, 
-                    sala.HoraTermino);
+                
+                string? idEventoCalendario = null;
+
+                if (string.IsNullOrEmpty(sala.IdCalendario))
+                {
+                    // Si no hay IdCalendario, se crea un nuevo evento
+                    idEventoCalendario = await _calendarService.EnviarInvitacionCalendarioAsync(
+                        detallesSalaResponse,
+                        new List<string> { correoAlumno },
+                        sala.FechaInicio,
+                        sala.FechaTermino,
+                        sala.Dias,
+                        sala.HoraInicio,
+                        sala.HoraTermino);
+
+                    if (!string.IsNullOrEmpty(idEventoCalendario))
+                    {
+                        await _cursoRepository.ActualizarIdCalendarioCursoAsync(request.IdCursoAbierto, idEventoCalendario);
+                    }
+                }
+                else
+                {
+                    // Si ya existe un IdCalendario, se actualiza el evento existente
+                    idEventoCalendario = sala.IdCalendario;
+                    var todosLosCorreos = await _cursoRepository.ObtenerCorreosPorCursoAsync(request.IdCursoAbierto.ToString());
+                    if (!todosLosCorreos.Contains(correoAlumno))
+                    {
+                        todosLosCorreos.Add(correoAlumno);
+                    }
+
+                    await _calendarService.ActualizarEventoCalendarioAsync(
+                        idEventoCalendario,
+                        detallesSalaResponse,
+                        todosLosCorreos,
+                        sala.FechaInicio,
+                        sala.FechaTermino,
+                        sala.Dias,
+                        sala.HoraInicio,
+                        sala.HoraTermino);
+                }
 
                 if (!string.IsNullOrEmpty(idEventoCalendario))
                 {
@@ -379,15 +405,9 @@ public class SalaService : ISalaService
                         IdCursoAbiertoBbb = request.IdCursoAbierto,
                         IdAlumno = request.IdAlumno,
                         Url = detallesSalaResponse.UrlSala,
-                        IdCalendario = idEventoCalendario,
                         FechaCreacion = DateTime.UtcNow
                     };
                     await _cursoRepository.GuardarInvitacionAsync(nuevaInvitacion);
-
-                    if (string.IsNullOrEmpty(sala.IdCalendario))
-                    {
-                        await _cursoRepository.ActualizarIdCalendarioCursoAsync(request.IdCursoAbierto, idEventoCalendario);
-                    }
                 }
 
                 return new EnviarInvitacionCursoResponse
