@@ -23,4 +23,13 @@ public interface IEmailService
     /// <param name="cuerpoHtml">El cuerpo del correo electrónico en formato HTML.</param>
     /// <returns>Una tarea que representa la operación asíncrona.</returns>
     Task EnviarCorreoSimpleAsync(string destinatario, string asunto, string cuerpoHtml);
+
+    /// <summary>
+    /// Envía un correo electrónico utilizando una plantilla y un diccionario de reemplazos.
+    /// </summary>
+    /// <param name="destinatario">La dirección de correo electrónico del destinatario.</param>
+    /// <param name="asunto">El asunto del correo electrónico.</param>
+    /// <param name="replacements">Un diccionario con las claves y valores para reemplazar en la plantilla.</param>
+    /// <returns>Una tarea que representa la operación asíncrona.</returns>
+    Task EnviarCorreoConPlantillaAsync(string destinatario, string asunto, Dictionary<string, string> replacements);
 }

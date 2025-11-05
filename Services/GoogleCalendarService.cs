@@ -181,7 +181,7 @@ public class GoogleCalendarService : ICalendarService
 
             existingEvent.Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}";
             existingEvent.Location = detallesSala.UrlSala;
-            existingEvent.Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Moderador: {detallesSala.ClaveModerador}\nClave Espectador: {detallesSala.ClaveEspectador}";
+            existingEvent.Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Espectador: {detallesSala.ClaveEspectador}";
             existingEvent.Attendees = correosParticipantes.Select(email => new EventAttendee { Email = email }).ToList();
             
             var eventStartDateTime = fechaInicio.Date.Add(horaInicio.TimeOfDay);
@@ -220,7 +220,7 @@ public class GoogleCalendarService : ICalendarService
         {
             Summary = $"Clase: {detallesSala.NombreSala ?? detallesSala.FriendlyId}",
             Location = detallesSala.UrlSala,
-            Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Moderador: {detallesSala.ClaveModerador}\nClave Espectador: {detallesSala.ClaveEspectador}",
+            Description = $"Únete a la sala virtual.\n\nURL: {detallesSala.UrlSala}\nClave Espectador: {detallesSala.ClaveEspectador}",
             Attendees = correosParticipantes.Select(email => new EventAttendee { Email = email }).ToList(),
             Reminders = new Event.RemindersData { UseDefault = true }
         };

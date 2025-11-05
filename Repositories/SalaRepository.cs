@@ -63,7 +63,14 @@ public class SalaRepository : ISalaRepository
                 roomCmd.Parameters.AddWithValue("meeting_id", sala.MeetingId);
                 roomCmd.Parameters.AddWithValue("user_id", creatorId.Value);
                 roomCmd.Parameters.AddWithValue("friendly_id", sala.FriendlyId);
-                roomCmd.Parameters.AddWithValue("calendar_event_id", sala.IdCalendario == null ? DBNull.Value : sala.IdCalendario);
+                if (sala.IdCalendario is not null)
+                {
+                    roomCmd.Parameters.AddWithValue("calendar_event_id", sala.IdCalendario);
+                }
+                else
+                {
+                    roomCmd.Parameters.AddWithValue("calendar_event_id", DBNull.Value);
+                }
                 roomCmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
                 roomCmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
                 var result = await roomCmd.ExecuteScalarAsync();

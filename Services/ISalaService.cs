@@ -33,16 +33,7 @@ public interface ISalaService
     /// <param name="idCursoAbierto">El ID del curso abierto.</param>
     /// <returns>Una tarea que representa la operación asíncrona. El resultado es una lista de objetos GrabacionDto o null si no se encuentran grabaciones.</returns>
     Task<List<GrabacionDto>?> ObtenerUrlsGrabacionesAsync(int idCursoAbierto);
-    /// <summary>
-    /// Envía una invitación individual a un alumno para un curso.
-    /// </summary>
-    /// <param name="request">La solicitud para enviar la invitación individual.</param>
-    /// <returns>Una tarea que representa la operación asíncrona. El resultado es un objeto EnviarInvitacionCursoResponse.</returns>
     Task<EnviarInvitacionCursoResponse> EnviarInvitacionIndividualAsync(EnviarInvitacionIndividualRequest request);
-    /// <summary>
-    /// Actualiza las invitaciones de un curso.
-    /// </summary>
-    /// <param name="request">La solicitud para actualizar las invitaciones del curso.</param>
-    /// <returns>Una tarea que representa la operación asíncrona. El resultado es un objeto EnviarInvitacionCursoResponse.</returns>
     Task<EnviarInvitacionCursoResponse> ActualizarInvitacionesCursoAsync(ActualizarEventoCalendarioRequest request);
+    Task<bool> EliminarCursoAsync(int idCursoAbierto);
 }

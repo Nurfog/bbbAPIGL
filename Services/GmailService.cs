@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
+using bbbAPIGL.Utils;
 
 /// <summary>
 /// Servicio para el envío de correos electrónicos utilizando la API de Gmail.
@@ -81,6 +82,23 @@ public class GmailService : IEmailService
     public async Task EnviarCorreoSimpleAsync(string destinatario, string asunto, string cuerpoHtml)
     {
         await EnviarCorreosAsync(new List<string> { destinatario }, asunto, cuerpoHtml);
+    }
+
+    /// <summary>
+    /// Envía un correo electrónico utilizando una plantilla y un diccionario de reemplazos.
+    /// </summary>
+    /// <param name="destinatario">La dirección de correo electrónico del destinatario.</param>
+    /// <param name="asunto">El asunto del correo electrónico.</param>
+    /// <param name="replacements">Un diccionario con las claves y valores para reemplazar en la plantilla.</param>
+    /// <returns>Una tarea que representa la operación asíncrona.</returns>
+    public async Task EnviarCorreoConPlantillaAsync(string destinatario, string asunto, Dictionary<string, string> replacements)
+    {
+        var cuerpoHtml = EmailTemplate.Template;
+        foreach (var replacement in replacements)
+        {
+            cuerpoHtml = cuerpoHtml.Replace(replacement.Key, replacement.Value);
+        }
+        await EnviarCorreoSimpleAsync(destinatario, asunto, cuerpoHtml);
     }
 
     /// <summary>

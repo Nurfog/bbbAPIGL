@@ -169,4 +169,27 @@ public class SalasController : ControllerBase
 
         return Ok(response);
     }
+
+    /// <summary>
+    /// Elimina un curso abierto y todas sus invitaciones asociadas.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto a eliminar.</param>
+    /// <returns>NoContent si el curso se eliminó con éxito, NotFound si no se encontró el curso.</returns>
+    [HttpDelete("cursos/{idCursoAbierto:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EliminarCurso(int idCursoAbierto)
+    {
+        try
+        {
+            var exito = await _salaService.EliminarCursoAsync(idCursoAbierto);
+            if (exito) return NoContent();
+            return NotFound(new { error = $"No se encontró el curso con el ID: {idCursoAbierto}" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al eliminar el curso con ID: {IdCursoAbierto}", idCursoAbierto);
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
+        }
+    }
 }

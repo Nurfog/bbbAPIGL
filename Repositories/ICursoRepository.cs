@@ -64,4 +64,9 @@ public interface ICursoRepository
     /// <param name="idAlumno">El ID del alumno.</param>
     /// <returns>Una tarea que representa la operación asíncrona. El resultado es un objeto CursoAbiertoInvitacion o null si no se encuentra.</returns>
     Task<CursoAbiertoInvitacion?> ObtenerInvitacionPorCursoAlumnoAsync(int idCursoAbierto, string idAlumno);
-}
+    Task<List<CursoAbiertoInvitacion>> ObtenerInvitacionesPorCursoAsync(int idCursoAbierto);
+    Task<int> EliminarInvitacionesPorCursoAsync(int idCursoAbierto);
+        Task<bool> EliminarCursoAsync(int idCursoAbierto);
+        Task<bool> ActualizarHorarioDesdeFuenteExternaAsync(int idCursoAbierto);
+    }
+    

@@ -4,12 +4,18 @@ using bbbAPIGL.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace bbbAPIGL.Services;
 
+/// <summary>
+/// Servicio para la gestión de salas, incluyendo creación, eliminación y envío de invitaciones.
+/// Autor: Juan Enrique Allende Cifuentes
+/// Fecha de Creación: 23-10-2025
+/// </summary>
 public class SalaService : ISalaService
 {
     private readonly ISalaRepository _salaRepository;
@@ -35,6 +41,12 @@ public class SalaService : ISalaService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Crea una nueva sala de reuniones virtual.
+    /// </summary>
+    /// <param name="request">Datos para la creación de la sala.</param>
+    /// <returns>Una respuesta con los detalles de la sala creada.</returns>
+    /// <exception cref="ApplicationException">Se lanza si ocurre un error al guardar la sala.</exception>
     public async Task<CrearSalaResponse> CrearNuevaSalaAsync(CrearSalaRequest request)
     {
         var meetingId = GeneraMeetingId();
@@ -75,6 +87,11 @@ public class SalaService : ISalaService
         return apiResponse;
     }
 
+    /// <summary>
+    /// Elimina una sala y su evento de calendario asociado.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala a eliminar.</param>
+    /// <returns>Verdadero si la eliminación fue exitosa, falso en caso contrario.</returns>
     public async Task<bool> EliminarSalaAsync(Guid roomId)
     {
         var idCalendario = await _salaRepository.ObtenerIdCalendarioPorSalaIdAsync(roomId);
@@ -101,6 +118,12 @@ public class SalaService : ISalaService
         return exitoPostgres;
     }
 
+    /// <summary>
+    /// Envía invitaciones de calendario a todos los alumnos de un curso.
+    /// </summary>
+    /// <param name="request">La solicitud con el ID del curso.</param>
+    /// <returns>Una respuesta indicando el resultado del envío.</returns>
+    /// <exception cref="InvalidOperationException">Se lanza si el curso no se encuentra o no tiene un horario definido.</exception>
     public async Task<EnviarInvitacionCursoResponse> EnviarInvitacionesCursoAsync(EnviarInvitacionCursoRequest request)
     {
         var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
@@ -144,8 +167,15 @@ public class SalaService : ISalaService
                 // Si ya existe una invitación, enviar un correo simple con la URL existente
                 _logger.LogInformation("Invitación existente para el alumno {idAlumno}, enviando correo simple.", alumno.IdAlumno);
                 var asunto = $"Recordatorio: Tu clase de {sala.NombreSala}";
-                var cuerpoHtml = $"Hola,<br><br>Te recordamos tu clase de <b>{sala.NombreSala}</b>.<br>Puedes unirte a la sala virtual aquí: <a href=\"{invitacionExistente.Url}\">{invitacionExistente.Url}</a><br><br>Saludos.";
-                await _emailService.EnviarCorreoSimpleAsync(alumno.Email, asunto, cuerpoHtml);
+                var replacements = new Dictionary<string, string>
+                {
+                    { "[**VAR_OC**]", sala.MeetingId ?? string.Empty },
+                    { "[**VAR_F**]", sala.FechaInicio.ToString("dd-MM-yyyy") },
+                    { "[**VAR_T**]", sala.NombreSala },
+                    { "[**VAR_TD**]", sala.ClaveEspectador ?? string.Empty },
+                };
+                await _emailService.EnviarCorreoConPlantillaAsync(alumno.Email, asunto, replacements);
+
                 correosEnviados++;
             }
             else
@@ -207,18 +237,24 @@ public class SalaService : ISalaService
     private static string GeneraFriendlyId()
     {
         const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-        var part1 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray()); // Usa Random.Shared
-        var part2 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray()); // Usa Random.Shared
-        var part3 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray()); // Usa Random.Shared
-        var part4 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray()); // Usa Random.Shared
+        var part1 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
+        var part2 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
+        var part3 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
+        var part4 = new string(Enumerable.Repeat(chars, 3).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
         return $"{part1}-{part2}-{part3}-{part4}";
     }
 
     private static string GeneraRandomPassword(int length)
     {
         const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-        return new string(Enumerable.Repeat(chars, length).Select(s => s[Random.Shared.Next(s.Length)]).ToArray()); // Usa Random.Shared
+        return new string(Enumerable.Repeat(chars, length).Select(s => s[Random.Shared.Next(s.Length)]).ToArray());
     }
+    
+    /// <summary>
+    /// Obtiene las URLs de las grabaciones de un curso.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Una lista de DTOs con la información de las grabaciones, o null si el curso no existe.</returns>
     public async Task<List<GrabacionDto>?> ObtenerUrlsGrabacionesAsync(int idCursoAbierto)
     {
         var curso = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(idCursoAbierto);
@@ -246,12 +282,37 @@ public class SalaService : ISalaService
         return grabacionesDto;
     }
 
+    /// <summary>
+    /// Envía una invitación de calendario individual a un alumno para un curso.
+    /// </summary>
+    /// <param name="request">La solicitud con los IDs del curso y del alumno.</param>
+    /// <returns>Una respuesta indicando el resultado del envío.</returns>
+    /// <exception cref="InvalidOperationException">Se lanza si el curso no se encuentra, no tiene horario o si hay un error con el servicio de calendario.</exception>
     public async Task<EnviarInvitacionCursoResponse> EnviarInvitacionIndividualAsync(EnviarInvitacionIndividualRequest request)
     {
         var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
         if (sala == null)
         {
             throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
+        }
+
+        if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias) || sala.HoraInicio == default || sala.HoraTermino == default)
+        {
+            _logger.LogInformation("El curso {IdCursoAbierto} no tiene un horario definido. Se intentará actualizar desde la fuente externa.", request.IdCursoAbierto);
+            var actualizado = await _cursoRepository.ActualizarHorarioDesdeFuenteExternaAsync(request.IdCursoAbierto);
+            if (actualizado)
+            {
+                _logger.LogInformation("Horario del curso {IdCursoAbierto} actualizado exitosamente.", request.IdCursoAbierto);
+                sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+                if (sala == null)
+                {
+                    throw new InvalidOperationException("El curso abierto especificado no fue encontrado después de la actualización.");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No se pudo actualizar el horario para el curso {IdCursoAbierto}.", request.IdCursoAbierto);
+            }
         }
 
         var correoAlumno = await _cursoRepository.ObtenerCorreoPorAlumnoAsync(request.IdAlumno.ToString(), request.IdCursoAbierto);
@@ -283,8 +344,14 @@ public class SalaService : ISalaService
         {
             _logger.LogInformation("Invitación existente para el alumno {idAlumno}, enviando correo simple.", request.IdAlumno);
             var asunto = $"Recordatorio: Tu clase de {sala.NombreSala}";
-            var cuerpoHtml = $"Hola,<br><br>Te recordamos tu clase de <b>{sala.NombreSala}</b>.<br>Puedes unirte a la sala virtual aquí: <a href=\"{invitacionExistente.Url}\">{invitacionExistente.Url}</a><br><br>Saludos.";
-            await _emailService.EnviarCorreoSimpleAsync(correoAlumno, asunto, cuerpoHtml);
+            var replacements = new Dictionary<string, string>
+            {
+                { "[**VAR_OC**]", sala.MeetingId ?? string.Empty },
+                { "[**VAR_F**]", sala.FechaInicio.ToString("dd-MM-yyyy") },
+                { "[**VAR_T**]", sala.NombreSala },
+                { "[**VAR_TD**]", sala.ClaveEspectador ?? string.Empty },
+            };
+            await _emailService.EnviarCorreoConPlantillaAsync(correoAlumno, asunto, replacements);
             return new EnviarInvitacionCursoResponse
             {
                 Mensaje = "Recordatorio enviado exitosamente.",
@@ -337,6 +404,12 @@ public class SalaService : ISalaService
         }
     }
 
+    /// <summary>
+    /// Actualiza un evento de calendario existente para un curso.
+    /// </summary>
+    /// <param name="request">La solicitud con los detalles de la actualización.</param>
+    /// <returns>Una respuesta indicando el resultado de la actualización.</returns>
+    /// <exception cref="InvalidOperationException">Se lanza si el curso no se encuentra, no tiene evento de calendario o si hay un error con el servicio de calendario.</exception>
     public async Task<EnviarInvitacionCursoResponse> ActualizarInvitacionesCursoAsync(ActualizarEventoCalendarioRequest request)
     {
         var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
@@ -394,5 +467,43 @@ public class SalaService : ISalaService
             Mensaje = "Invitaciones actualizadas exitosamente.",
             CorreosEnviados = correos.Count
         };
+    }
+
+    public async Task<bool> EliminarCursoAsync(int idCursoAbierto)
+    {
+        _logger.LogInformation("Iniciando eliminación del curso {IdCursoAbierto}", idCursoAbierto);
+
+        var invitaciones = await _cursoRepository.ObtenerInvitacionesPorCursoAsync(idCursoAbierto);
+
+        foreach (var invitacion in invitaciones)
+        {
+            if (!string.IsNullOrEmpty(invitacion.IdCalendario))
+            {
+                try
+                {
+                    await _calendarService.EliminarEventoCalendarioAsync(invitacion.IdCalendario);
+                    _logger.LogInformation("Evento de calendario {IdCalendario} eliminado para la invitación.", invitacion.IdCalendario);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al eliminar el evento de calendario {IdCalendario}. La eliminación del curso continuará.", invitacion.IdCalendario);
+                }
+            }
+        }
+
+        await _cursoRepository.EliminarInvitacionesPorCursoAsync(idCursoAbierto);
+        _logger.LogInformation("Todas las invitaciones para el curso {IdCursoAbierto} han sido eliminadas.", idCursoAbierto);
+
+        var exito = await _cursoRepository.EliminarCursoAsync(idCursoAbierto);
+        if (exito)
+        {
+            _logger.LogInformation("Curso {IdCursoAbierto} eliminado exitosamente.", idCursoAbierto);
+        }
+        else
+        {
+            _logger.LogWarning("No se encontró o no se pudo eliminar el curso {IdCursoAbierto}.", idCursoAbierto);
+        }
+
+        return exito;
     }
 }

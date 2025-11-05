@@ -141,8 +141,8 @@ public class MySqlCursoRepository : ICursoRepository
                     FechaInicio = reader.IsDBNull(reader.GetOrdinal("fechaInicio")) ? default : reader.GetDateTime("fechaInicio"),
                     FechaTermino = reader.IsDBNull(reader.GetOrdinal("fechaTermino")) ? default : reader.GetDateTime("fechaTermino"),
                     Dias = reader.IsDBNull(reader.GetOrdinal("dias")) ? null : reader.GetString("dias"),
-                    HoraInicio = reader.IsDBNull(reader.GetOrdinal("horaInicio")) ? default : reader.GetDateTime("horaInicio"),
-                    HoraTermino = reader.IsDBNull(reader.GetOrdinal("horaTermino")) ? default : reader.GetDateTime("horaTermino")
+                    HoraInicio = reader.IsDBNull(reader.GetOrdinal("horaInicio")) ? default : reader.GetDateTime("fechaInicio").Date + reader.GetTimeSpan("horaInicio"),
+                    HoraTermino = reader.IsDBNull(reader.GetOrdinal("horaTermino")) ? default : reader.GetDateTime("fechaInicio").Date + reader.GetTimeSpan("horaTermino")
                 };
             }
 
@@ -237,23 +237,40 @@ public class MySqlCursoRepository : ICursoRepository
             await using var connection = new MySqlConnection(_connectionString);
             await connection.OpenAsync();
 
-            const string sql = @"
-                INSERT INTO cursosabiertosbbbinvitaciones 
-                (idCursoAbiertoBbb, idAlumno, url, idCalendario, fechaCreacion) 
-                VALUES (@IdCursoAbiertoBbb, @IdAlumno, @Url, @IdCalendario, @FechaCreacion)";
+            // First, try to update the existing invitation
+            string updateSql = @"
+                UPDATE cursosabiertosbbbinvitacion 
+                SET url = @Url, idCalendario = @IdCalendario
+                WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb AND idAlumno = @IdAlumno";
 
-            await using var command = new MySqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@IdCursoAbiertoBbb", invitacion.IdCursoAbiertoBbb);
-            command.Parameters.AddWithValue("@IdAlumno", invitacion.IdAlumno);
-            command.Parameters.AddWithValue("@Url", invitacion.Url);
-            command.Parameters.AddWithValue("@IdCalendario", invitacion.IdCalendario);
-            command.Parameters.AddWithValue("@FechaCreacion", invitacion.FechaCreacion);
+            await using var updateCommand = new MySqlCommand(updateSql, connection);
+            updateCommand.Parameters.AddWithValue("@Url", invitacion.Url);
+            updateCommand.Parameters.AddWithValue("@IdCalendario", invitacion.IdCalendario);
+            updateCommand.Parameters.AddWithValue("@IdCursoAbiertoBbb", invitacion.IdCursoAbiertoBbb);
+            updateCommand.Parameters.AddWithValue("@IdAlumno", invitacion.IdAlumno);
 
-            await command.ExecuteNonQueryAsync();
+            int rowsAffected = await updateCommand.ExecuteNonQueryAsync();
+
+            // If no rows were updated, it means the invitation does not exist, so insert it
+            if (rowsAffected == 0)
+            {
+                string insertSql = @"
+                    INSERT INTO cursosabiertosbbbinvitacion 
+                    (idcursosabiertosbbb, idAlumno, url, idCalendario) 
+                    VALUES (@IdCursoAbiertoBbb, @IdAlumno, @Url, @IdCalendario)";
+
+                await using var insertCommand = new MySqlCommand(insertSql, connection);
+                insertCommand.Parameters.AddWithValue("@IdCursoAbiertoBbb", invitacion.IdCursoAbiertoBbb);
+                insertCommand.Parameters.AddWithValue("@IdAlumno", invitacion.IdAlumno);
+                insertCommand.Parameters.AddWithValue("@Url", invitacion.Url);
+                insertCommand.Parameters.AddWithValue("@IdCalendario", invitacion.IdCalendario);
+
+                await insertCommand.ExecuteNonQueryAsync();
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al guardar invitación.");
+            _logger.LogError(ex, "Error al guardar invitación para curso {IdCursoAbiertoBbb} y alumno {IdAlumno}.", invitacion.IdCursoAbiertoBbb, invitacion.IdAlumno);
             throw;
         }
     }
@@ -272,9 +289,9 @@ public class MySqlCursoRepository : ICursoRepository
             await connection.OpenAsync();
 
             const string sql = @"
-                SELECT id, idCursoAbiertoBbb, idAlumno, url, idCalendario, fechaCreacion 
-                FROM cursosabiertosbbbinvitaciones 
-                WHERE idCursoAbiertoBbb = @IdCursoAbiertoBbb AND idAlumno = @IdAlumno";
+                SELECT idcursosabiertosbbb, idAlumno, url, idCalendario 
+                FROM cursosabiertosbbbinvitacion 
+                WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb AND idAlumno = @IdAlumno";
 
             await using var command = new MySqlCommand(sql, connection);
             command.Parameters.AddWithValue("@IdCursoAbiertoBbb", idCursoAbierto);
@@ -285,12 +302,12 @@ public class MySqlCursoRepository : ICursoRepository
             {
                 return new CursoAbiertoInvitacion
                 {
-                    Id = reader.GetInt32("id"),
-                    IdCursoAbiertoBbb = reader.GetInt32("idCursoAbiertoBbb"),
+                    Id = 0, // Default value as 'id' column does not exist in DB
+                    IdCursoAbiertoBbb = reader.GetInt32("idcursosabiertosbbb"),
                     IdAlumno = reader.GetString("idAlumno"),
                     Url = reader.GetString("url"),
                     IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
-                    FechaCreacion = reader.GetDateTime("fechaCreacion")
+                    FechaCreacion = default // Not retrieved from DB
                 };
             }
 
@@ -333,6 +350,130 @@ public class MySqlCursoRepository : ICursoRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al obtener correo por alumno: {IdAlumno}, {IdCursoAbierto}", idAlumno, idCursoAbierto);
+            throw;
+        }
+    }
+
+    public async Task<List<CursoAbiertoInvitacion>> ObtenerInvitacionesPorCursoAsync(int idCursoAbierto)
+    {
+        var invitaciones = new List<CursoAbiertoInvitacion>();
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string sql = @"
+            SELECT idcursosabiertosbbb, idAlumno, url, idCalendario
+            FROM cursosabiertosbbbinvitacion
+            WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@IdCursoAbiertoBbb", idCursoAbierto);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            invitaciones.Add(new CursoAbiertoInvitacion
+            {
+                Id = 0, // Default value as 'id' column does not exist in DB
+                IdCursoAbiertoBbb = reader.GetInt32("idcursosabiertosbbb"),
+                IdAlumno = reader.GetString("idAlumno"),
+                Url = reader.GetString("url"),
+                IdCalendario = reader.IsDBNull(reader.GetOrdinal("idCalendario")) ? null : reader.GetString("idCalendario"),
+                FechaCreacion = default // Not retrieved from DB
+            });
+        }
+
+        return invitaciones;
+    }
+
+    public async Task<int> EliminarInvitacionesPorCursoAsync(int idCursoAbierto)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string sql = "DELETE FROM cursosabiertosbbbinvitacion WHERE idcursosabiertosbbb = @IdCursoAbiertoBbb";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@IdCursoAbiertoBbb", idCursoAbierto);
+
+        return await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task<bool> EliminarCursoAsync(int idCursoAbierto)
+    {
+        await using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        const string sql = "DELETE FROM cursosabiertosbbb WHERE idCursoAbierto = @IdCursoAbierto";
+
+        await using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@IdCursoAbierto", idCursoAbierto);
+
+        var rowsAffected = await command.ExecuteNonQueryAsync();
+        return rowsAffected > 0;
+    }
+
+    public async Task<bool> ActualizarHorarioDesdeFuenteExternaAsync(int idCursoAbierto)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string selectSql = @"
+                SELECT a.idCursoAbierto,   
+                       c.HoraFin,
+                       b.nombrecorto,
+                       c.Horainicio,
+                       a.FechaInicio,
+                       a.FechaFin
+                FROM sige_sam_v3.cursosabiertos as a inner join
+                     combinaciondias as b on a.idCombinacionDias = b.idCombinacionDias inner join
+                     bloqueshorario as c on a.idBloquesHorario = c.idBloquesHorario
+                where a.idCursoAbierto = @IdCursoAbierto";
+
+            await using var selectCommand = new MySqlCommand(selectSql, connection);
+            selectCommand.Parameters.AddWithValue("@IdCursoAbierto", idCursoAbierto);
+
+            await using var reader = await selectCommand.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var horaFinTimeSpan = reader.GetTimeSpan("HoraFin");
+                var nombreCorto = reader.GetString("nombrecorto");
+                var horaInicioTimeSpan = reader.GetTimeSpan("Horainicio");
+                var fechaInicio = reader.GetDateTime("FechaInicio");
+                var fechaFin = reader.GetDateTime("FechaFin");
+
+                var horaInicio = fechaInicio.Date + horaInicioTimeSpan;
+                var horaFin = fechaInicio.Date + horaFinTimeSpan;
+
+                await reader.CloseAsync();
+
+                const string updateSql = @"
+                    UPDATE cursosabiertosbbb
+                    SET fechaInicio = @FechaInicio,
+                        fechaTermino = @FechaTermino,
+                        dias = @Dias,
+                        horaInicio = @HoraInicio,
+                        horaTermino = @HoraTermino
+                    WHERE idCursoAbierto = @IdCursoAbierto";
+
+                await using var updateCommand = new MySqlCommand(updateSql, connection);
+                updateCommand.Parameters.AddWithValue("@FechaInicio", fechaInicio.Date);
+                updateCommand.Parameters.AddWithValue("@FechaTermino", fechaFin.Date);
+                updateCommand.Parameters.AddWithValue("@Dias", nombreCorto);
+                updateCommand.Parameters.AddWithValue("@HoraInicio", horaInicio);
+                updateCommand.Parameters.AddWithValue("@HoraTermino", horaFin);
+                updateCommand.Parameters.AddWithValue("@IdCursoAbierto", idCursoAbierto);
+
+                var rowsAffected = await updateCommand.ExecuteNonQueryAsync();
+                return rowsAffected > 0;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al actualizar el horario del curso desde la fuente externa: {IdCursoAbierto}", idCursoAbierto);
             throw;
         }
     }
