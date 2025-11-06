@@ -94,7 +94,7 @@ public class SalaService : ISalaService
     /// <returns>Verdadero si la eliminación fue exitosa, falso en caso contrario.</returns>
     public async Task<bool> EliminarSalaAsync(Guid roomId)
     {
-        var idCalendario = await _salaRepository.ObtenerIdCalendarioPorSalaIdAsync(roomId);
+        var idCalendario = await _cursoRepository.ObtenerIdCalendarioPorRoomIdAsync(roomId);
 
         if (!string.IsNullOrEmpty(idCalendario))
         {
@@ -138,6 +138,30 @@ public class SalaService : ISalaService
             return new EnviarInvitacionCursoResponse { Mensaje = "No se encontraron alumnos para el curso.", CorreosEnviados = 0 };
         }
 
+        if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias) || sala.HoraInicio == default || sala.HoraTermino == default)
+        {
+            _logger.LogInformation("El curso {IdCursoAbierto} no tiene un horario definido. Se intentará actualizar desde la fuente externa.", request.IdCursoAbierto);
+            var actualizado = await _cursoRepository.ActualizarHorarioDesdeFuenteExternaAsync(request.IdCursoAbierto);
+            if (actualizado)
+            {
+                _logger.LogInformation("Horario del curso {IdCursoAbierto} actualizado exitosamente.", request.IdCursoAbierto);
+                sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+                if (sala == null)
+                {
+                    throw new InvalidOperationException("El curso abierto especificado no fue encontrado después de la actualización.");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No se pudo actualizar el horario para el curso {IdCursoAbierto}.", request.IdCursoAbierto);
+            }
+        }
+
+        if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias))
+        {
+            throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
+        }
+
         var detallesSalaResponse = new CrearSalaResponse
         {
             RoomId = Guid.TryParse(sala.RoomId, out var roomId) ? roomId : Guid.Empty, 
@@ -149,11 +173,6 @@ public class SalaService : ISalaService
             MeetingId = sala.MeetingId ?? string.Empty,
             RecordId = string.Empty
         };
-
-        if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias))
-        {
-            throw new InvalidOperationException("El curso no tiene un horario definido (fechas o días de la semana) para crear un evento recurrente.");
-        }
 
         int correosEnviados = 0;
         string? idCalendarioPrincipal = sala.IdCalendario; // Usar el ID de calendario existente si lo hay

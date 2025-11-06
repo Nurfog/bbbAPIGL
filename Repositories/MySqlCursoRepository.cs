@@ -475,4 +475,29 @@ public class MySqlCursoRepository : ICursoRepository
             throw;
         }
     }
+
+    public async Task<string?> ObtenerIdCalendarioPorRoomIdAsync(Guid roomId)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"
+                SELECT idCalendario 
+                FROM cursosabiertosbbb 
+                WHERE roomId = @RoomId LIMIT 1";
+
+            await using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@RoomId", roomId.ToString());
+
+            var result = await command.ExecuteScalarAsync();
+            return result is not DBNull ? result?.ToString() : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener IdCalendario por RoomId: {RoomId}", roomId);
+            throw;
+        }
+    }
 }

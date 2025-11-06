@@ -68,5 +68,12 @@ public interface ICursoRepository
     Task<int> EliminarInvitacionesPorCursoAsync(int idCursoAbierto);
         Task<bool> EliminarCursoAsync(int idCursoAbierto);
         Task<bool> ActualizarHorarioDesdeFuenteExternaAsync(int idCursoAbierto);
+
+    /// <summary>
+    /// Obtiene el ID del calendario asociado a un curso a través del RoomId de la sala.
+    /// </summary>
+    /// <param name="roomId">El ID de la sala (de PostgreSQL).</param>
+    /// <returns>El ID del calendario (de MySQL) o null si no se encuentra.</returns>
+    Task<string?> ObtenerIdCalendarioPorRoomIdAsync(Guid roomId);
     }
     

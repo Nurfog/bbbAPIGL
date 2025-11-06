@@ -368,6 +368,14 @@ Elimina un curso abierto y todas sus invitaciones asociadas.
 
 ## Historial de Cambios
 
+### 06-11-2025
+
+-   **Corrección de Enrutamiento en API:** Se ajustó el `SalasController` para usar `[Route("apiv2")]` a nivel de clase y se eliminaron los prefijos redundantes de las acciones, resolviendo problemas de 404.
+-   **Solución de Error 502 (Bad Gateway):** Se corrigió el archivo de servicio `systemd` (`kestrel-bbbapigl.service`) para que el comando `ExecStart` apunte correctamente al archivo `.dll` de la aplicación, resolviendo el error 502.
+-   **Resolución de Error de Base de Datos (PostgreSQL):** Se eliminó la referencia a la columna `calendar_event_id` de la consulta `INSERT` en `SalaRepository.cs` y se eliminó el método `ObtenerIdCalendarioPorSalaIdAsync` de `SalaRepository` e `ISalaRepository`, ya que esta columna no pertenece a PostgreSQL.
+-   **Corrección de Lógica de Invitaciones Masivas:** Se añadió la lógica de sincronización de horarios (`ActualizarHorarioDesdeFuenteExternaAsync`) al método `EnviarInvitacionesCursoAsync` en `SalaService.cs`, evitando el error de "horario no definido" al enviar invitaciones a cursos.
+-   **Ajuste de Configuración de Nginx:** Se corrigió la directiva `proxy_pass` en la configuración de Nginx para asegurar que las peticiones a `/apiv2/` se redirijan correctamente a la aplicación sin modificar la URL.
+
 ### 05-11-2025
 
 -   **Mejora en la Lógica de Invitaciones Individuales**: Se ha mejorado la lógica de envío de invitaciones individuales (`EnviarInvitacionIndividualAsync`). Ahora, si un curso ya tiene un evento de calendario creado, se añadirá al nuevo alumno a ese evento existente en lugar de crear uno nuevo. Si el curso no tiene un evento, se creará uno con el primer alumno invitado y se guardará el ID del evento para futuras invitaciones, asegurando que todos los alumnos de un curso compartan el mismo evento de calendario.

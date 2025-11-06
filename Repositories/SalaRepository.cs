@@ -52,8 +52,8 @@ public class SalaRepository : ISalaRepository
             }
 
             var roomQuery = @"
-                INSERT INTO rooms (name, meeting_id, user_id, friendly_id, calendar_event_id, created_at, updated_at) 
-                VALUES (@name, @meeting_id, @user_id, @friendly_id, @calendar_event_id, @created_at, @updated_at)
+                INSERT INTO rooms (name, meeting_id, user_id, friendly_id, created_at, updated_at) 
+                VALUES (@name, @meeting_id, @user_id, @friendly_id, @created_at, @updated_at)
                 RETURNING id;";
 
             Guid newRoomId;
@@ -63,14 +63,6 @@ public class SalaRepository : ISalaRepository
                 roomCmd.Parameters.AddWithValue("meeting_id", sala.MeetingId);
                 roomCmd.Parameters.AddWithValue("user_id", creatorId.Value);
                 roomCmd.Parameters.AddWithValue("friendly_id", sala.FriendlyId);
-                if (sala.IdCalendario is not null)
-                {
-                    roomCmd.Parameters.AddWithValue("calendar_event_id", sala.IdCalendario);
-                }
-                else
-                {
-                    roomCmd.Parameters.AddWithValue("calendar_event_id", DBNull.Value);
-                }
                 roomCmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
                 roomCmd.Parameters.AddWithValue("updated_at", DateTime.UtcNow);
                 var result = await roomCmd.ExecuteScalarAsync();
@@ -273,21 +265,4 @@ public class SalaRepository : ISalaRepository
         return recordings;
     }
 
-    /// <summary>
-    /// Obtiene el ID del calendario asociado a una sala por su ID desde la base de datos PostgreSQL.
-    /// </summary>
-    /// <param name="roomId">El ID de la sala.</param>
-    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del calendario o null si no se encuentra.</returns>
-    public async Task<string?> ObtenerIdCalendarioPorSalaIdAsync(Guid roomId)
-    {
-        await using var conn = new NpgsqlConnection(_connectionString);
-        await conn.OpenAsync();
-        string sql = "SELECT calendar_event_id FROM rooms WHERE id = @RoomId";
-
-        await using var command = new NpgsqlCommand(sql, conn);
-        command.Parameters.AddWithValue("@RoomId", roomId);
-
-        var result = await command.ExecuteScalarAsync();
-        return result is not DBNull ? result?.ToString() : null;
-    }
 }

@@ -42,11 +42,4 @@ public interface ISalaRepository
     /// <returns>Una tarea que representa la operación asíncrona. El resultado es una lista de objetos RecordingInfo.</returns>
     Task<List<RecordingInfo>> ObtenerTodosLosRecordIdsPorRoomIdAsync(Guid roomId);
 
-    /// <summary>
-    /// Obtiene el ID del calendario asociado a una sala por su ID.
-    /// </summary>
-    /// <param name="roomId">El ID de la sala.</param>
-    /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del calendario o null si no se encuentra.</returns>
-    Task<string?> ObtenerIdCalendarioPorSalaIdAsync(Guid roomId);
-
 }

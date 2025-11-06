@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 namespace bbbAPIGL.Controllers;
 
 [ApiController]
+[Route("apiv2")]
 public class SalasController : ControllerBase
 {
     private readonly ISalaService _salaService;
