@@ -212,7 +212,7 @@ public static class EmailTemplate
                                                             <div style="color: #e5eaf5; line-height: 140%; text-align: center; word-wrap: break-word;">
                                                                 <p style="font-size: 14px; line-height: 140%;">
                                                                     <span style="font-size: 28px; line-height: 39.2px;">
-                                                                        <strong><span style="line-height: 39.2px; font-size: 28px;">Información de tu reunión</span></strong>
+                                                                        <strong><span style="line-height: 39.2px; font-size: 28px;">Información de tus clases</span></strong>
                                                                     </span>
                                                                 </p>
                                                             </div>
@@ -246,7 +246,78 @@ public static class EmailTemplate
                                         <div style="height: 100%; padding: 0px;border-top: 0px solid transparent;border-left: 0px solid transparent;border-right: 0px solid transparent;border-bottom: 0px solid transparent;">
                                             <!--<![endif]-->
 
-                                            <table style="font-family:'Cabin',sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+                                            <table style="font-family:'Cabin',sans-serif; margin-bottom: 30px" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
+                                                <tbody>
+                                                    <tr>
+                                                        <td colspan="2" style="overflow-wrap:break-word;word-break:break-word;padding:33px 55px;font-family:'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px; line-height: 35.2px;">
+                                                                <strong>En este correo te adjuntamos la información de tus clases.</strong>
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px;">
+                                                                Link de la Sala
+                                                            </span>
+                                                        </th>
+                                                    </tr>
+                                                    <tr>
+                                                        <th style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif; " align="left">
+                                                            <span style="font-size: 16px;">
+                                                               <a href="[**VAR_OC**]" target="_blank">Ingresar a la Clase</a>   
+                                                            </span>
+                                                        </th>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px;">
+                                                                Fecha de Clase
+                                                            </span>
+                                                        </td>
+                                                          </tr>
+                                                    <tr>
+                                                        <th style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif; " align="left">
+                                                            <span style="font-size: 16px;">
+                                                                [**VAR_F**]
+                                                            </span>
+                                                        </th>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px;">
+                                                                Nombre de la Sala de Clases
+                                                            </span>
+                                                        </td>
+                                                          </tr>
+                                                    <tr>
+                                                        <th style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px;">
+                                                                [**VAR_T**]
+                                                            </span>
+                                                        </th>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px;">
+                                                                Clave de Espectador
+                                                            </span>
+                                                        </td>
+                                                          </tr>
+                                                    <tr>
+                                                        <th style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                                                            <span style="font-size: 16px;">
+                                                                [**VAR_TD**]
+                                                            </span>
+                                                        </th>
+                                                    </tr>
+                                                    
+                                                </tbody>
+                                            </table>
+
+<hr /  >
+
+ <table style="font-family:'Cabin',sans-serif;" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
                                                 <tbody>
                                                     <tr>
                                                         <td style="overflow-wrap:break-word;word-break:break-word;padding:33px 55px;font-family:'Cabin',sans-serif;" align="left">
@@ -254,7 +325,7 @@ public static class EmailTemplate
                                                             <div style="line-height: 160%; word-wrap: break-word; text-align: justify; text-justify: inter-word;">
                                                                 <p style="line-height: 160%;">
                                                                     <span style="font-size: 16px; line-height: 35.2px;">
-                                                                        En este correo te adjuntamos la información de tu reunión.
+                                                                        Para más información sobre tus clases puedes ingresar al siguiente enlace:
                                                                     </span>
                                                                 </p>
                                                                 <p style="line-height: 160%; text-align: center">
@@ -264,7 +335,7 @@ public static class EmailTemplate
                                                                 </p>
                                                                 <p style="line-height: 160%; text-align: center">
                                                                     <span style="font-size: 20px; line-height: 35.2px;">
-                                                                        <a href="http://alumnos.sam.norteamericano.cl" class="btn btn-primary" style=" color: white; text-decoration: none" target="_blank"> Ver datos de la reunión</a>
+                                                                        <a href="http://alumnos.sam.norteamericano.cl" class="btn btn-primary" style=" color: white; text-decoration: none" target="_blank">Acceso al Portal de Alumno</a>
                                                                     </span>
                                                                 </p>
                                                             </div>
@@ -272,94 +343,7 @@ public static class EmailTemplate
                                                     </tr>
                                                 </tbody>
                                             </table>
-
-                                            <hr />
-
-                                            <table style="font-family:'Cabin',sans-serif; margin-bottom: 30px" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
-                                                <tbody>
-                                                    <tr>
-                                                        <td colspan="2" style="overflow-wrap:break-word;word-break:break-word;padding:33px 55px;font-family:'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px; line-height: 35.2px;">
-                                                                <strong>Comprobante del pago</strong>
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                ID de Reunión
-                                                            </span>
-                                                        </td>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif; " align="left">
-                                                            <span style="font-size: 16px;">
-                                                                [**VAR_OC**]
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                Fecha de Reunión
-                                                            </span>
-                                                        </td>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif; " align="left">
-                                                            <span style="font-size: 16px;">
-                                                                [**VAR_F**]
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                Nombre de la Reunión
-                                                            </span>
-                                                        </td>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                [**VAR_T**]
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                Clave de Espectador
-                                                            </span>
-                                                        </td>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                [**VAR_TD**]
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr style="display:none">
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                Código Autorización
-                                                            </span>
-                                                        </td>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                [**VAR_CA**]
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                    <tr style="display:none">
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                Monto
-                                                            </span>
-                                                        </td>
-                                                        <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
-                                                            <span style="font-size: 16px;">
-                                                                [**VAR_M**]
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-
-
+<hr /  >
                                             <table style="font-family:'Cabin',sans-serif; margin-bottom: 30px" role="presentation" cellpadding="0" cellspacing="0" width="100%" border="0">
                                                 <tbody>
                                                     <tr>
