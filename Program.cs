@@ -14,6 +14,7 @@ builder.Services.AddScoped<ISalaService, SalaService>();
 builder.Services.AddScoped<ISalaRepository, SalaRepository>();
 builder.Services.AddScoped<ICursoRepository, MySqlCursoRepository>();
 builder.Services.AddScoped<ICalendarService, GoogleCalendarService>();
+builder.Services.AddScoped<IAcademicCalendarService, AcademicCalendarService>();
 builder.Services.AddTransient<IEmailService, GmailService>();
 // 2. Construir la aplicación
 var app = builder.Build();

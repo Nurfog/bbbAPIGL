@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
 using bbbAPIGL.DTOs;
+using Google.Apis.Calendar.v3.Data;
 
 /// <summary>
 /// Interfaz para el servicio de calendario, proporcionando métodos para la gestión de eventos.
@@ -39,13 +40,14 @@ public interface ICalendarService
         DateTime fechaTermino, 
         string diasSemana,
         DateTime horaInicio,
-        DateTime horaTermino);
+        DateTime horaTermino,
+        bool sendNotifications = true);
     /// <summary>
     /// Elimina un evento de calendario.
     /// </summary>
     /// <param name="eventoId">El ID del evento de calendario a eliminar.</param>
     /// <returns>Una tarea que representa la operación asíncrona.</returns>
-    Task EliminarEventoCalendarioAsync(string eventoId);
+    Task EliminarEventoCalendarioAsync(string eventoId, bool sendNotifications = true);
     /// <summary>
     /// Actualiza un evento de calendario existente.
     /// </summary>
@@ -58,5 +60,34 @@ public interface ICalendarService
     /// <param name="horaInicio">Hora de inicio del evento.</param>
     /// <param name="horaTermino">Hora de término del evento.</param>
     /// <returns>El ID del evento de calendario actualizado o null si falla.</returns>
-    Task<string?> ActualizarEventoCalendarioAsync(string eventoId, CrearSalaResponse detallesSala, List<string> correosParticipantes, DateTime fechaInicio, DateTime fechaTermino, string diasSemana, DateTime horaInicio, DateTime horaTermino);
+    Task<string?> ActualizarEventoCalendarioAsync(string eventoId, CrearSalaResponse detallesSala, List<string> correosParticipantes, DateTime fechaInicio, DateTime fechaTermino, string diasSemana, DateTime horaInicio, DateTime horaTermino, bool sendNotifications = true);
+    Task<string?> ReprogramarSesionCalendarioAsync(string eventoId, DateTime fechaOriginal, DateTime nuevaFecha);
+    
+    /// <summary>
+    /// Obtiene todas las instancias de un evento recurrente.
+    /// </summary>
+    /// <param name="eventoId">El ID del evento recurrente maestro.</param>
+    /// <returns>Una lista de instancias del evento.</returns>
+    Task<IList<Event>> ObtenerInstanciasDeEventoAsync(string eventoId);
+
+    /// <summary>
+    /// Cancela una instancia específica de un evento de calendario.
+    /// </summary>
+    /// <param name="instancia">La instancia del evento a cancelar.</param>
+    /// <returns>Una tarea que representa la operación asíncrona.</returns>
+    Task CancelarInstanciaAsync(Event instancia, bool sendNotifications = true);
+
+    /// <summary>
+    /// Crea un nuevo evento único en el calendario.
+    /// </summary>
+    /// <param name="evento">El evento a crear.</param>
+    /// <returns>El ID del evento creado.</returns>
+    Task<string> CrearEventoUnicoAsync(Event evento, bool sendNotifications = true);
+
+    /// <summary>
+    /// Obtiene un evento de calendario por su ID.
+    /// </summary>
+    /// <param name="eventoId">El ID del evento.</param>
+    /// <returns>El objeto del evento.</returns>
+    Task<Event> ObtenerEventoAsync(string eventoId);
 }

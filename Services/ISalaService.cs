@@ -36,4 +36,6 @@ public interface ISalaService
     Task<EnviarInvitacionCursoResponse> EnviarInvitacionIndividualAsync(EnviarInvitacionIndividualRequest request);
     Task<EnviarInvitacionCursoResponse> ActualizarInvitacionesCursoAsync(ActualizarEventoCalendarioRequest request);
     Task<bool> EliminarCursoAsync(int idCursoAbierto);
+    Task<bool> ReprogramarSesionAsync(ReprogramarSesionRequest request);
+    Task SincronizarCalendarioAsync(int idCursoAbierto);
 }

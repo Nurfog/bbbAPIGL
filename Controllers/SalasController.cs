@@ -132,6 +132,7 @@ public class SalasController : ControllerBase
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ActualizarInvitaciones([FromRoute] int idCursoAbierto, [FromBody] ActualizarEventoCalendarioRequest requestBody)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
         requestBody.IdCursoAbierto = idCursoAbierto;
         try
         {
@@ -189,6 +190,33 @@ public class SalasController : ControllerBase
         {
             _logger.LogError(ex, "Error inesperado al eliminar el curso con ID: {IdCursoAbierto}", idCursoAbierto);
             return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
+        }
+    }
+
+    /// <summary>
+    /// Reprograma una sesión de un curso.
+    /// </summary>
+    /// <param name="request">Datos para la reprogramación de la sesión.</param>
+    /// <returns>Ok si la sesión se reprogramó con éxito, BadRequest si los datos son inválidos.</returns>
+    [HttpPost("reprogramar-sesion")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReprogramarSesion([FromBody] ReprogramarSesionRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            await _salaService.ReprogramarSesionAsync(request);
+            return Ok();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al reprogramar la sesión.");
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al reprogramar la sesión." });
         }
     }
 }

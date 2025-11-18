@@ -80,7 +80,8 @@ public class GoogleCalendarService : ICalendarService
         DateTime fechaTermino, 
         string diasSemana,
         DateTime horaInicio,
-        DateTime horaTermino)
+        DateTime horaTermino,
+        bool sendNotifications = true)
     {
         try
         {
@@ -110,7 +111,7 @@ public class GoogleCalendarService : ICalendarService
             _logger.LogDebug("Creando evento recurrente en calendario: Summary='{summary}', Start='{start}', End='{end}', Recurrence='{recurrence}'", newEvent.Summary, newEvent.Start.DateTimeDateTimeOffset, newEvent.End.DateTimeDateTimeOffset, newEvent.Recurrence.FirstOrDefault());
 
             var request = service.Events.Insert(newEvent, calendarId);
-            request.SendNotifications = true;
+            request.SendNotifications = sendNotifications;
 
             var createdEvent = await request.ExecuteAsync();
             _logger.LogInformation("Evento de calendario recurrente creado exitosamente con ID: {eventId}", createdEvent.Id);
@@ -128,7 +129,7 @@ public class GoogleCalendarService : ICalendarService
     /// </summary>
     /// <param name="eventoId">El ID del evento de calendario a eliminar.</param>
     /// <returns>Una tarea que representa la operación asíncrona.</returns>
-    public async Task EliminarEventoCalendarioAsync(string eventoId)
+    public async Task EliminarEventoCalendarioAsync(string eventoId, bool sendNotifications = true)
     {
         try
         {
@@ -136,7 +137,7 @@ public class GoogleCalendarService : ICalendarService
             var service = await GetCalendarServiceAsync();
             var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
             var request = service.Events.Delete(calendarId, eventoId);
-            request.SendNotifications = true;
+            request.SendNotifications = sendNotifications;
             await request.ExecuteAsync();
             _logger.LogInformation("Evento de calendario eliminado exitosamente.");
         }
@@ -159,7 +160,8 @@ public class GoogleCalendarService : ICalendarService
     /// <param name="horaInicio">Hora de inicio del evento.</param>
     /// <param name="horaTermino">Hora de término del evento.</param>
     /// <returns>Una tarea que representa la operación asíncrona. El resultado es el ID del evento de calendario actualizado o null si falla.</returns>
-    public async Task<string?> ActualizarEventoCalendarioAsync(string eventoId, CrearSalaResponse detallesSala, List<string> correosParticipantes, DateTime fechaInicio, DateTime fechaTermino, string diasSemana, DateTime horaInicio, DateTime horaTermino)
+    public async Task<string?> ActualizarEventoCalendarioAsync(string eventoId, CrearSalaResponse detallesSala, List<string> correosParticipantes, DateTime fechaInicio, DateTime fechaTermino, string diasSemana, DateTime horaInicio, DateTime horaTermino,
+        bool sendNotifications = true)
     {
         try
         {
@@ -194,7 +196,7 @@ public class GoogleCalendarService : ICalendarService
             _logger.LogDebug("Actualizando evento recurrente en calendario: Summary='{summary}', Start='{start}', End='{end}', Recurrence='{recurrence}'", existingEvent.Summary, existingEvent.Start.DateTimeDateTimeOffset, existingEvent.End.DateTimeDateTimeOffset, existingEvent.Recurrence.FirstOrDefault());
 
             var request = service.Events.Update(existingEvent, calendarId, eventoId);
-            request.SendNotifications = true;
+            request.SendNotifications = sendNotifications;
 
             var updatedEvent = await request.ExecuteAsync();
             _logger.LogInformation("Evento de calendario recurrente actualizado exitosamente con ID: {eventId}", updatedEvent.Id);
@@ -259,5 +261,199 @@ public class GoogleCalendarService : ICalendarService
             HttpClientInitializer = credential,
             ApplicationName = "bbbAPIGL API"
         });
+    }
+
+    public async Task<string?> ReprogramarSesionCalendarioAsync(string eventoId, DateTime fechaOriginal, DateTime nuevaFecha)
+    {
+        try
+        {
+            _logger.LogInformation("Iniciando reprogramación de sesión en calendario para el evento {eventoId} de la fecha {fechaOriginal} a {nuevaFecha}.", eventoId, fechaOriginal.ToString("yyyy-MM-dd"), nuevaFecha.ToString("yyyy-MM-dd"));
+            var service = await GetCalendarServiceAsync();
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
+
+            // 1. Obtener el evento recurrente maestro para tener los detalles
+            var recurringEvent = await service.Events.Get(calendarId, eventoId).ExecuteAsync();
+            if (recurringEvent == null)
+            {
+                _logger.LogError("No se encontró el evento recurrente maestro con ID {eventoId}.", eventoId);
+                throw new InvalidOperationException($"No se encontró el evento recurrente maestro con ID {eventoId}.");
+            }
+
+            // 2. Encontrar y cancelar la instancia específica del evento recurrente
+            var instancesRequest = service.Events.Instances(calendarId, eventoId);
+            instancesRequest.ShowDeleted = true; // Incluir instancias canceladas en el resultado
+            var instances = await instancesRequest.ExecuteAsync();
+            
+            var instanceToCancel = instances.Items.FirstOrDefault(i =>
+            {
+                if (i.Start.DateTimeDateTimeOffset.HasValue)
+                {
+                    return i.Start.DateTimeDateTimeOffset.Value.Date == fechaOriginal.Date;
+                }
+                if (!string.IsNullOrEmpty(i.Start.Date))
+                {
+                    return DateTime.Parse(i.Start.Date).Date == fechaOriginal.Date;
+                }
+                return false;
+            });
+
+            if (instanceToCancel != null && instanceToCancel.Status != "cancelled")
+            {
+                instanceToCancel.Status = "cancelled";
+                await service.Events.Update(instanceToCancel, calendarId, instanceToCancel.Id).ExecuteAsync();
+                _logger.LogInformation("Instancia del evento con ID de instancia {instanceId} (del evento maestro {eventoId}) en la fecha {fechaOriginal} fue cancelada.", instanceToCancel.Id, eventoId, fechaOriginal.ToString("yyyy-MM-dd"));
+            }
+            else if (instanceToCancel != null)
+            {
+                _logger.LogInformation("La instancia del evento en la fecha {fechaOriginal} ya estaba cancelada.", fechaOriginal.ToString("yyyy-MM-dd"));
+            }
+            else
+            {
+                _logger.LogWarning("No se encontró una instancia del evento {eventoId} en la fecha {fechaOriginal} para cancelar. Se continuará con la creación del nuevo evento.", eventoId, fechaOriginal.ToString("yyyy-MM-dd"));
+            }
+
+            // 3. Crear un nuevo evento único para la nueva fecha
+            if (recurringEvent.Start?.DateTimeDateTimeOffset == null || recurringEvent.End?.DateTimeDateTimeOffset == null)
+            {
+                _logger.LogError("El evento recurrente maestro con ID {eventoId} no tiene fechas de inicio o fin válidas.", eventoId);
+                throw new InvalidOperationException($"El evento recurrente maestro con ID {eventoId} no tiene fechas de inicio o fin válidas.");
+            }
+            
+            var horaInicio = recurringEvent.Start.DateTimeDateTimeOffset.Value.TimeOfDay;
+            var horaTermino = recurringEvent.End.DateTimeDateTimeOffset.Value.TimeOfDay;
+            var timeZone = recurringEvent.Start.TimeZone;
+            var startOffset = recurringEvent.Start.DateTimeDateTimeOffset.Value.Offset;
+            var newStart = new DateTimeOffset(nuevaFecha.Year, nuevaFecha.Month, nuevaFecha.Day, horaInicio.Hours, horaInicio.Minutes, horaInicio.Seconds, startOffset);
+            var endOffset = recurringEvent.End.DateTimeDateTimeOffset.Value.Offset;
+            var newEnd = new DateTimeOffset(nuevaFecha.Year, nuevaFecha.Month, nuevaFecha.Day, horaTermino.Hours, horaTermino.Minutes, horaTermino.Seconds, endOffset);
+
+            var newEvent = new Event
+            {
+                Summary = recurringEvent.Summary,
+                Location = recurringEvent.Location,
+                Description = recurringEvent.Description,
+                Attendees = recurringEvent.Attendees,
+                Reminders = recurringEvent.Reminders,
+                Start = new EventDateTime { DateTimeDateTimeOffset = newStart, TimeZone = timeZone },
+                End = new EventDateTime { DateTimeDateTimeOffset = newEnd, TimeZone = timeZone }
+            };
+
+            var request = service.Events.Insert(newEvent, calendarId);
+            request.SendNotifications = true;
+            var createdEvent = await request.ExecuteAsync();
+
+            _logger.LogInformation("Nueva sesión única creada con ID {createdEventId} para el evento maestro {eventoId} en la fecha {nuevaFecha}.", createdEvent.Id, eventoId, nuevaFecha.ToString("yyyy-MM-dd"));
+            return createdEvent.Id;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al reprogramar la sesión en el calendario para el evento {eventoId}.", eventoId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Convierte un objeto DateTime a la zona horaria especificada.
+    /// </summary>
+    /// <param name="dateTime">El objeto DateTime a convertir.</param>
+    /// <param name="targetTimeZoneId">El ID de la zona horaria de destino (ej. "America/Santiago").</param>
+    /// <returns>El objeto DateTime convertido a la zona horaria de destino.</returns>
+    private DateTime ConvertToTimeZone(DateTime dateTime, string targetTimeZoneId)
+    {
+        TimeZoneInfo targetTimeZone = TimeZoneInfo.FindSystemTimeZoneById(targetTimeZoneId);
+
+        if (dateTime.Kind == DateTimeKind.Unspecified)
+        {
+            // Si el tipo es Unspecified, asumimos que está en la zona horaria local del servidor
+            // antes de convertirlo a la zona horaria de destino.
+            return TimeZoneInfo.ConvertTime(dateTime, TimeZoneInfo.Local, targetTimeZone);
+        }
+        else if (dateTime.Kind == DateTimeKind.Local)
+        {
+            return TimeZoneInfo.ConvertTime(dateTime, TimeZoneInfo.Local, targetTimeZone);
+        }
+        else // DateTimeKind.Utc
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(dateTime, targetTimeZone);
+        }
+    }
+
+    public async Task<IList<Event>> ObtenerInstanciasDeEventoAsync(string eventoId)
+    {
+        try
+        {
+            _logger.LogInformation("Obteniendo todas las instancias para el evento {eventoId}.", eventoId);
+            var service = await GetCalendarServiceAsync();
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
+            var request = service.Events.Instances(calendarId, eventoId);
+            var instances = await request.ExecuteAsync();
+            return instances.Items;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener las instancias del evento {eventoId}.", eventoId);
+            throw;
+        }
+    }
+
+    public async Task CancelarInstanciaAsync(Event instancia, bool sendNotifications = true)
+    {
+        try
+        {
+            _logger.LogInformation("Cancelando la instancia de evento con ID {instanciaId}.", instancia.Id);
+            var service = await GetCalendarServiceAsync();
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
+            
+            instancia.Status = "cancelled";
+            
+            var request = service.Events.Update(instancia, calendarId, instancia.Id);
+            request.SendNotifications = sendNotifications;
+            await request.ExecuteAsync();
+            _logger.LogInformation("Instancia de evento {instanciaId} cancelada exitosamente.", instancia.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al cancelar la instancia de evento {instanciaId}.", instancia.Id);
+            throw;
+        }
+    }
+
+    public async Task<string> CrearEventoUnicoAsync(Event evento, bool sendNotifications = true)
+    {
+        try
+        {
+            _logger.LogInformation("Creando un nuevo evento único: {summary}", evento.Summary);
+            var service = await GetCalendarServiceAsync();
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
+            
+            var request = service.Events.Insert(evento, calendarId);
+            request.SendNotifications = sendNotifications;
+            var createdEvent = await request.ExecuteAsync();
+            _logger.LogInformation("Nuevo evento único creado con ID {eventId}.", createdEvent.Id);
+            return createdEvent.Id;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al crear el evento único.");
+            throw;
+        }
+    }
+
+    public async Task<Event> ObtenerEventoAsync(string eventoId)
+    {
+        try
+        {
+            _logger.LogInformation("Obteniendo el evento con ID {eventoId}.", eventoId);
+            var service = await GetCalendarServiceAsync();
+            var calendarId = _configuration["GoogleCalendarSettings:CalendarId"] ?? "primary";
+            var request = service.Events.Get(calendarId, eventoId);
+            var evento = await request.ExecuteAsync();
+            return evento;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener el evento {eventoId}.", eventoId);
+            throw;
+        }
     }
 }

@@ -75,5 +75,22 @@ public interface ICursoRepository
     /// <param name="roomId">El ID de la sala (de PostgreSQL).</param>
     /// <returns>El ID del calendario (de MySQL) o null si no se encuentra.</returns>
     Task<string?> ObtenerIdCalendarioPorRoomIdAsync(Guid roomId);
-    }
+
+    /// <summary>
+    /// Obtiene todas las sesiones de un curso abierto.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Una lista de sesiones del curso.</returns>
+    Task<List<CursoAbiertoSesion>> ObtenerSesionesPorCursoAsync(int idCursoAbierto);
+
+    /// <summary>
+    /// Obtiene todas las sesiones activas de un curso abierto.
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Una lista de sesiones activas del curso.</returns>
+    Task<List<CursoAbiertoSesion>> ObtenerSesionesActivasPorCursoAsync(int idCursoAbierto);
+    Task<bool> ReprogramarSesionAsync(int idCursoAbierto, int sesionNumero, DateOnly fechaNuevaSesion, string? idCalendario);
+    Task<CursoAbiertoSesion?> ObtenerSesionAsync(int idCursoAbierto, int sesionNumero);
+    Task ActualizarHorarioCursoAsync(int idCursoAbierto, DateTime fechaInicio, DateTime fechaTermino, string? dias, DateTime horaInicio, DateTime horaTermino);
+}
     

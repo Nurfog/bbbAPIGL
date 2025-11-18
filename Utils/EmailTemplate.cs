@@ -1,8 +1,31 @@
-
 namespace bbbAPIGL.Utils;
 
 public static class EmailTemplate
 {
+    public static string GetReprogramacionSesionBody(string nombreSala, string fechaOriginal, string fechaNueva, string urlSala, string claveEspectador)
+    {
+        return $"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Reprogramación de Sesión</title>
+        </head>
+        <body>
+            <h1>Reprogramación de la sesión de {nombreSala}</h1>
+            <p>Estimado(a) alumno(a),</p>
+            <p>Le informamos que la sesión de su curso que originalmente estaba programada para el <strong>{fechaOriginal}</strong> ha sido reprogramada.</p>
+            <p>La nueva fecha y hora para esta sesión es: <strong>{fechaNueva}</strong>.</p>
+            <p>Puede acceder a la sala a través del siguiente enlace:</p>
+            <p><a href="{urlSala}">{urlSala}</a></p>
+            <p>La clave de acceso es: <strong>{claveEspectador}</strong></p>
+            <p>Agradecemos su comprensión.</p>
+            <p>Saludos cordiales,</p>
+            <p>El equipo de Norteamericano</p>
+        </body>
+        </html>
+        """;
+    }
+
     public const string Template = """
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Transitional //EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -369,6 +392,7 @@ public static class EmailTemplate
                                                     </tr>
                                                     <tr>
                                                         <td style="overflow-wrap: break-word; word-break: break-word; padding: 5px 55px; font-family: 'Cabin',sans-serif;" align="left">
+                             
                                                             <span style="font-size: 12px; ">
                                                                 A través de internet visita <a href="https://norteamericano.cl" target="_blank">norteamericano.cl</a>
                                                             </span>

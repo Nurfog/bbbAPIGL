@@ -366,6 +366,25 @@ Elimina un curso abierto y todas sus invitaciones asociadas.
     -   `404 Not Found`: Si no se encuentra el curso con el `idCursoAbierto` proporcionado.
     -   `500 Internal Server Error`: Si ocurre un error en la base de datos durante la eliminación.
 
+#### 5. Reprogramar una Sesión
+Reprograma una sesión específica de un curso abierto, actualizando su fecha.
+-   **Método**: `POST`
+-   **URL**: `/reprogramar-sesion`
+-   **URL Completa**: `www.example.com/apiv2/reprogramar-sesion`
+-   **Cuerpo de la petición (Request Body)**
+    ```json
+    {
+        "idCursoAbierto": "string",
+        "sesionNumero": 0,
+        "fechaNuevaSesion": "2025-11-05"
+    }
+    ```
+-   **Respuesta Exitosa (200 OK)**
+    Si la sesión se reprograma con éxito, la API responderá con un código de estado 200 y sin cuerpo de respuesta.
+-   **Respuestas de Error**
+    -   `400 Bad Request`: Si los datos de la petición son inválidos o si la operación no es posible (ej. sesión no encontrada).
+    -   `500 Internal Server Error`: Si ocurre un error inesperado en el servidor.
+
 ## Historial de Cambios
 
 ### 06-11-2025

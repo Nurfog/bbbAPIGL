@@ -4,7 +4,7 @@ API for managing virtual meeting rooms (BBB), sending invitations, and accessing
 
 ## General Description
 
-This API provides a robust interface to interact with a BigBlueButton (BBB) system, facilitating the automation of virtual meeting room management. It allows the creation and deletion of rooms, management of invitations via email with deep integration with Google Calendar to schedule events, and secure retrieval of recording URLs stored in an S3-compatible service.
+This API provides a robust interface to interact with a BigBlueButton (BBB) system, facilitating the automation of virtual meeting room management. It allows for the creation and deletion of rooms, management of invitations via email with deep integration with Google Calendar for scheduling events, and secure retrieval of recording URLs stored in an S3-compatible service.
 
 The main objective is to simplify the administration of online learning or meeting environments, offering key functionalities for educators and platform administrators.
 
@@ -152,7 +152,7 @@ Configures dependency injection, registering services and repositories with thei
 ## Usage Documentation
 
 API Documentation for BigBlueButton Integration
-Version: 2.1 https://www.example.com/apiv2/
+Version: 2.1 www.example.com/apiv2/
 Introduction
 This API provides an interface to interact with the BigBlueButton (BBB) web conferencing platform through its Greenlight management system. It allows the creation and deletion of rooms, as well as sending notifications to specific courses.
 All communication with the API is done via HTTPS. The bodies of requests and responses must be in JSON format.
@@ -162,7 +162,7 @@ All communication with the API is done via HTTPS. The bodies of requests and res
 Creates a new room in the Greenlight database and associates it with a creator user.
 -   **Method**: `POST`
 -   **URL**: `/salas`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/salas`
+-   **Full URL**: `www.example.com/apiv2/salas`
 -   **Request Body**
     ```json
     {
@@ -186,7 +186,7 @@ Creates a new room in the Greenlight database and associates it with a creator u
     ```json
     {
         "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-        "urlSala": "https://bbb.norteamericano.com/rooms/abc-123-def-456/join",
+        "urlSala": "www.example.com/rooms/abc-123-def-456/join",
         "claveModerador": "g3h4j5k6",
         "claveEspectador": "a1b2c3d4",
         "meetingId": "a_long_string_of_40_characters",
@@ -199,7 +199,7 @@ Creates a new room in the Greenlight database and associates it with a creator u
 Permanently deletes a room and all its associated configurations from the Greenlight database.
 -   **Method**: `DELETE`
 -   **URL**: `/salas/{roomId}`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/salas/{roomId}`
+-   **Full URL**: `www.example.com/apiv2/salas/{roomId}`
 -   **URL Parameters (Path Parameters)**
     | Parameter | Type | Required | Description                                            |
     |-----------|------|----------|--------------------------------------------------------|
@@ -215,7 +215,7 @@ Permanently deletes a room and all its associated configurations from the Greenl
 Sends an invitation email to all students of a specific course registered in the client's MySQL database.
 -   **Method**: `POST`
 -   **URL**: `/invitaciones/{idCursoAbierto}`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/invitaciones/{idCursoAbierto}`
+-   **Full URL**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
 -   **URL Parameters (Path Parameters)**
     | Field            | Type    | Required | Description                                                              |
     |------------------|---------|----------|--------------------------------------------------------------------------|
@@ -229,14 +229,14 @@ Sends an invitation email to all students of a specific course registered in the
     Returns a JSON object confirming the result of the operation.
     | Field            | Type    | Description                               |
     |------------------|---------|-------------------------------------------|
-    | `mensaje`          | string  | A confirmation message.               |
-    | `correosEnviados` | integer | The number of emails sent to the course students. |
+    | `message`          | string  | A confirmation message.               |
+    | `emailsSent` | integer | The number of emails sent to the course students. |
 
 -   **JSON Example (Response)**
     ```json
     {
-        "mensaje": "Invitations sent successfully.",
-        "correosEnviados": 42
+        "message": "Invitations sent successfully.",
+        "emailsSent": 42
     }
     ```
 -   **Error Responses**
@@ -246,7 +246,7 @@ Sends an invitation email to all students of a specific course registered in the
 Sends an invitation email to a specific student of a course registered in the client's MySQL database.
 -   **Method**: `POST`
 -   **URL**: `/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
+-   **Full URL**: `www.example.com/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
 -   **URL Parameters (Path Parameters)**
     | Field            | Type    | Required | Description                                                              |
     |------------------|---------|----------|--------------------------------------------------------------------------|
@@ -261,14 +261,14 @@ Sends an invitation email to a specific student of a course registered in the cl
     Returns a JSON object confirming the result of the operation.
     | Field            | Type    | Description                               |
     |------------------|---------|-------------------------------------------|
-    | `mensaje`          | string  | A confirmation message.               |
-    | `correosEnviados` | integer | The number of emails sent. |
+    | `message`          | string  | A confirmation message.               |
+    | `emailsSent` | integer | The number of emails sent. |
 
 -   **JSON Example (Response)**
     ```json
     {
-        "mensaje": "Invitation sent successfully.",
-        "correosEnviados": 1
+        "message": "Invitation sent successfully.",
+        "emailsSent": 1
     }
     ```
 -   **Error Responses**
@@ -279,7 +279,7 @@ Sends an invitation email to a specific student of a course registered in the cl
 Updates the invitations for an open course.
 -   **Method**: `PUT`
 -   **URL**: `/invitaciones/{idCursoAbierto}`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/invitaciones/{idCursoAbierto}`
+-   **Full URL**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
 -   **URL Parameters (Path Parameters)**
     | Field            | Type    | Required | Description                                                              |
     |------------------|---------|----------|--------------------------------------------------------------------------|
@@ -302,14 +302,14 @@ Updates the invitations for an open course.
     Returns a JSON object confirming the result of the operation.
     | Field            | Type    | Description                               |
     |------------------|---------|-------------------------------------------|
-    | `mensaje`          | string  | A confirmation message.               |
-    | `correosEnviados` | integer | The number of emails that were updated. |
+    | `message`          | string  | A confirmation message.               |
+    | `emailsSent` | integer | The number of emails that were updated. |
 
 -   **JSON Example (Response)**
     ```json
     {
-        "mensaje": "Invitations updated successfully.",
-        "correosEnviados": 10
+        "message": "Invitations updated successfully.",
+        "emailsSent": 10
     }
     ```
 -   **Error Responses**
@@ -320,7 +320,7 @@ Updates the invitations for an open course.
 Gets a list of all available recordings for a specific course, including their playback URL and creation date.
 -   **Method**: `GET`
 -   **URL**: `/grabaciones/{idCursoAbierto}`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/grabaciones/{idCursoAbierto}`
+-   **Full URL**: `www.example.com/apiv2/grabaciones/{idCursoAbierto}`
 -   **URL Parameters (Path Parameters)**
     | Parameter        | Type    | Required | Description                                                              |
     |------------------|---------|----------|--------------------------------------------------------------------------|
@@ -339,12 +339,12 @@ Gets a list of all available recordings for a specific course, including their p
     [
         {
             "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-            "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
+            "playbackUrl": "www.example.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
             "createdAt": "2025-09-12"
         },
         {
             "recordId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-            "playbackUrl": "https://bbb.norteamericano.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
+            "playbackUrl": "www.example.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
             "createdAt": "2025-09-10"
         }
     ]
@@ -354,7 +354,7 @@ Gets a list of all available recordings for a specific course, including their p
 Deletes an open course and all its associated invitations.
 -   **Method**: `DELETE`
 -   **URL**: `/cursos/{idCursoAbierto}`
--   **Full URL**: `https://bbb.norteamericano.com/apiv2/cursos/{idCursoAbierto}`
+-   **Full URL**: `www.example.com/apiv2/cursos/{idCursoAbierto}`
 -   **URL Parameters (Path Parameters)**
     | Parameter | Type | Required | Description                                            |
     |-----------|------|----------|--------------------------------------------------------|
@@ -366,7 +366,34 @@ Deletes an open course and all its associated invitations.
     -   `404 Not Found`: If the course with the provided `idCursoAbierto` is not found.
     -   `500 Internal Server Error`: If a database error occurs during deletion.
 
+#### 5. Reschedule a Session
+Reschedules a specific session of an open course, updating its date.
+-   **Method**: `POST`
+-   **URL**: `/reprogramar-sesion`
+-   **Full URL**: `www.example.com/apiv2/reprogramar-sesion`
+-   **Request Body**
+    ```json
+    {
+        "idCursoAbierto": "string",
+        "sesionNumero": 0,
+        "fechaNuevaSesion": "2025-11-05"
+    }
+    ```
+-   **Successful Response (200 OK)**
+    If the session is successfully rescheduled, the API will respond with a 200 status code and no response body.
+-   **Error Responses**
+    -   `400 Bad Request`: If the request data is invalid or if the operation is not possible (e.g., session not found).
+    -   `500 Internal Server Error`: If an unexpected error occurs on the server.
+
 ## Change History
+
+### 2025-11-06
+
+-   **API Routing Fix:** Adjusted `SalasController` to use `[Route("apiv2")]` at the class level and removed redundant prefixes from actions, resolving 404 issues.
+-   **502 Bad Gateway Error Solution:** Corrected the `systemd` service file (`kestrel-bbbapigl.service`) so that the `ExecStart` command correctly points to the application's `.dll` file, resolving the 502 error.
+-   **Database Error Resolution (PostgreSQL):** Removed the reference to the `calendar_event_id` column from the `INSERT` query in `SalaRepository.cs` and removed the `ObtenerIdCalendarioPorSalaIdAsync` method from `SalaRepository` and `ISalaRepository`, as this column does not belong to PostgreSQL.
+-   **Bulk Invitation Logic Correction:** Added schedule synchronization logic (`ActualizarHorarioDesdeFuenteExternaAsync`) to the `EnviarInvitacionesCursoAsync` method in `SalaService.cs`, preventing the "schedule not defined" error when sending course invitations.
+-   **Nginx Configuration Adjustment:** Corrected the `proxy_pass` directive in the Nginx configuration to ensure that requests to `/apiv2/` are correctly redirected to the application without modifying the URL.
 
 ### 2025-11-05
 
