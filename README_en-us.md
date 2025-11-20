@@ -387,6 +387,10 @@ Reschedules a specific session of an open course, updating its date.
 
 ## Change History
 
+### 2025-11-18
+
+-   **Fix in Session Rescheduling**: Fixed a bug in the session rescheduling logic (`ReprogramarSesionAsync`) that prevented the creation of Google Calendar events for low or medium sequence sessions. Now, the event is created correctly on the requested date, ensuring that all rescheduled sessions are reflected in the calendar.
+
 ### 2025-11-06
 
 -   **API Routing Fix:** Adjusted `SalasController` to use `[Route("apiv2")]` at the class level and removed redundant prefixes from actions, resolving 404 issues.

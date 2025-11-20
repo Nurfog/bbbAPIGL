@@ -149,243 +149,158 @@ Ubicados en la carpeta `Repositories`, son responsables de la abstracción de la
 
 Configura la inyección de dependencias, registrando los servicios y repositorios con sus respectivas interfaces. También configura el pipeline de peticiones HTTP (Swagger, HTTPS redirection, etc.).
 
-## Documentación de Uso
+## Endpoints de la API
 
-Documentación de la API para Integración con BigBlueButton
-Versión: 2.1 www.example.com/apiv2/
-Introducción
-Esta API proporciona una interfaz para interactuar con la plataforma de conferencias web BigBlueButton (BBB) a través de su sistema de gestión Greenlight. Permite la creación y eliminación de salas, así como el envío de notificaciones a cursos específicos.
-Toda la comunicación con la API se realiza a través de HTTPS. Los cuerpos de las peticiones y respuestas deben estar en formato JSON.
+Todos los endpoints están prefijados con `/apiv2`.
 
-### Endpoints
-#### 1.1 Crear una Nueva Sala
-Crea una nueva sala en la base de datos de Greenlight y la asocia a un usuario creador.
--   **Método**: `POST`
--   **URL**: `/salas`
--   **URL Completa**: `www.example.com/apiv2/salas`
--   **Cuerpo de la petición (Request Body)**
+### Salas
+
+#### `POST /salas`
+
+Crea una nueva sala de reuniones virtual.
+
+-   **Cuerpo de la Petición (`CrearSalaRequest`)**:
     ```json
     {
         "nombre": "string",
         "emailCreador": "string"
     }
     ```
--   **Respuesta Exitosa (201 Created)**
-    Devuelve un objeto JSON con todos los detalles de la sala recién creada.
-    | Campo           | Tipo   | Descripción                                                              |
-    |-----------------|--------|--------------------------------------------------------------------------|
-    | `roomId`          | guid   | El ID único de la sala en la base de datos de Greenlight (UUID).         |
-    | `urlSala`         | string | La URL directa para unirse a la sala.                                    |
-    | `claveModerador`  | string | La contraseña para unirse a la sala como moderador.                      |
-    | `claveEspectador` | string | La contraseña para unirse a la sala como espectador.                     |
-    | `meetingId`       | string | El ID interno de la reunión utilizado por BigBlueButton.                 |
-    | `friendlyId`      | string | El ID "amigable" que forma parte de la URL de la sala.                   |
-    | `recordId`        | string | Un identificador único generado para una posible grabación de esta sesión. |
-
--   **JSON de Ejemplo (Response)**
+-   **Respuesta Exitosa (201 Created) (`CrearSalaResponse`)**:
     ```json
     {
-        "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-        "urlSala": "www.example.com/rooms/abc-123-def-456/join",
-        "claveModerador": "g3h4j5k6",
-        "claveEspectador": "a1b2c3d4",
-        "meetingId": "una_cadena_larga_de_40_caracteres",
-        "friendlyId": "abc-123-def-456",
-        "recordId": "una_cadena_larga_de_40_caracteres-1756543210"
+        "roomId": "guid",
+        "urlSala": "string",
+        "claveModerador": "string",
+        "claveEspectador": "string",
+        "meetingId": "string",
+        "friendlyId": "string",
+        "recordId": "string"
     }
     ```
 
-#### 1.2 Eliminar una Sala
-Elimina permanentemente una sala y todas sus configuraciones asociadas de la base de datos de Greenlight.
--   **Método**: `DELETE`
--   **URL**: `/salas/{roomId}`
--   **URL Completa**: `www.example.com/apiv2/salas/{roomId}`
--   **Parámetros de URL (Path Parameters)**
-    | Parámetro | Tipo | Requerido | Descripción                                            |
-    |-----------|------|----------|--------------------------------------------------------|
-    | `roomId`    | guid | Sí       | El identificador único (UUID) de la sala que se desea eliminar. |
+#### `DELETE /salas/{roomId}`
 
--   **Respuesta Exitosa (204 No Content)**
-    Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.
--   **Respuestas de Error**
-    -   `404 Not Found`: Si no se encuentra ninguna sala con el `roomId` proporcionado.
-    -   `500 Internal Server Error`: Si ocurre un error en la base de datos durante la eliminación.
+Elimina una sala existente.
 
-#### 2. Enviar Invitaciones a un Curso
-Envía un correo electrónico de invitación a todos los alumnos de un curso específico registrado en la base de datos MySQL del cliente.
--   **Método**: `POST`
--   **URL**: `/invitaciones/{idCursoAbierto}`
--   **URL Completa**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
--   **Parámetros de URL (Path Parameters)**
-    | Campo            | Tipo    | Requerido | Descripción                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso (de la tabla `cursosabiertosbbb`) al que se enviarán las invitaciones. |
+-   **Parámetros de URL**:
+    -   `roomId` (guid, requerido): El ID de la sala a eliminar.
+-   **Respuesta Exitosa (204 No Content)**: La sala fue eliminada.
+-   **Respuesta de Error (404 Not Found)**: No se encontró la sala con el ID especificado.
 
--   **JSON de Ejemplo (Request)**
-    ```json
-    // No se requiere cuerpo de petición para este endpoint.
-    ```
--   **Respuesta Exitosa (200 OK)**
-    Devuelve un objeto JSON confirmando el resultado de la operación.
-    | Campo            | Tipo    | Descripción                               |
-    |------------------|---------|-------------------------------------------|
-    | `mensaje`          | string  | Un mensaje de confirmación.               |
-    | `correosEnviados` | integer | El número de correos que se enviaron a los alumnos del curso. |
+### Invitaciones
 
--   **JSON de Ejemplo (Response)**
+#### `POST /invitaciones/{idCursoAbierto}`
+
+Envía invitaciones por correo electrónico a todos los participantes de un curso abierto.
+
+-   **Parámetros de URL**:
+    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
+-   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
     ```json
     {
-        "mensaje": "Invitaciones enviadas exitosamente.",
-        "correosEnviados": 42
+        "mensaje": "string",
+        "correosEnviados": "integer"
     }
     ```
--   **Respuestas de Error**
-    -   `404 Not Found`: Si no se encuentra el curso o la sala asociada en la base de datos MySQL.
+-   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. el curso no tiene un horario definido).
 
-#### 2.1 Enviar Invitación Individual a un Curso
-Envía un correo electrónico de invitación a un alumno específico de un curso registrado en la base de datos MySQL del cliente.
--   **Método**: `POST`
--   **URL**: `/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
--   **URL Completa**: `www.example.com/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
--   **Parámetros de URL (Path Parameters)**
-    | Campo            | Tipo    | Requerido | Descripción                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idAlumno` | string | Sí       | El ID del alumno al que se le enviará la invitación. |
-    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso (de la tabla `cursosabiertosbbb`) al que se enviará la invitación. |
+#### `POST /invitaciones/individual/{idAlumno}/{idCursoAbierto}`
 
--   **JSON de Ejemplo (Request)**
-    ```json
-    // No se requiere cuerpo de petición para este endpoint.
-    ```
--   **Respuesta Exitosa (200 OK)**
-    Devuelve un objeto JSON confirmando el resultado de la operación.
-    | Campo            | Tipo    | Descripción                               |
-    |------------------|---------|-------------------------------------------|
-    | `mensaje`          | string  | Un mensaje de confirmación.               |
-    | `correosEnviados` | integer | El número de correos que se enviaron. |
+Envía una invitación individual a un alumno específico para un curso abierto.
 
--   **JSON de Ejemplo (Response)**
+-   **Parámetros de URL**:
+    -   `idAlumno` (string, requerido): El ID del alumno.
+    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
+-   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
     ```json
     {
-        "mensaje": "Invitacion enviada exitosamente.",
+        "mensaje": "string",
         "correosEnviados": 1
     }
     ```
--   **Respuestas de Error**
-    -   `400 Bad Request`: Si el request es inválido.
-    -   `500 Internal Server Error`: Error interno del servidor.
+-   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos.
 
-#### 2.2 Actualizar Invitaciones de un Curso
-Actualiza las invitaciones de un curso abierto.
--   **Método**: `PUT`
--   **URL**: `/invitaciones/{idCursoAbierto}`
--   **URL Completa**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
--   **Parámetros de URL (Path Parameters)**
-    | Campo            | Tipo    | Requerido | Descripción                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso (de la tabla `cursosabiertosbbb`) para el que se actualizarán las invitaciones. |
+#### `PUT /invitaciones/{idCursoAbierto}`
 
--   **Cuerpo de la petición (Request Body)**
+Actualiza las invitaciones y el evento de calendario para un curso abierto. Útil si cambian los días u horarios del curso.
+
+-   **Parámetros de URL**:
+    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
+-   **Cuerpo de la Petición (`ActualizarEventoCalendarioRequest`)**:
     ```json
     {
         "idCursoAbierto": 0,
-        "fechaInicio": "2025-11-05T15:07:26.158Z",
-        "fechaTermino": "2025-11-05T15:07:26.158Z",
-        "dias": [
-            "Lunes"
-        ],
-        "horaInicio": "string",
-        "horaTermino": "string"
+        "fechaInicio": "datetime",
+        "fechaTermino": "datetime",
+        "dias": ["Lunes", "Martes", ...],
+        "horaInicio": "string (HH:mm)",
+        "horaTermino": "string (HH:mm)"
     }
     ```
--   **Respuesta Exitosa (200 OK)**
-    Devuelve un objeto JSON confirmando el resultado de la operación.
-    | Campo            | Tipo    | Descripción                               |
-    |------------------|---------|-------------------------------------------|
-    | `mensaje`          | string  | Un mensaje de confirmación.               |
-    | `correosEnviados` | integer | El número de correos que se actualizaron. |
-
--   **JSON de Ejemplo (Response)**
+-   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
     ```json
     {
-        "mensaje": "Invitaciones actualizadas exitosamente.",
-        "correosEnviados": 10
+        "mensaje": "string",
+        "correosEnviados": "integer"
     }
     ```
--   **Respuestas de Error**
-    -   `400 Bad Request`: Si el request es inválido.
-    -   `500 Internal Server Error`: Error interno del servidor.
+-   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos.
 
-#### 3. Obtener Grabaciones de un Curso 🎥
-Obtiene una lista de todas las grabaciones disponibles para un curso específico, incluyendo su URL de reproducción y fecha de creación.
--   **Método**: `GET`
--   **URL**: `/grabaciones/{idCursoAbierto}`
--   **URL Completa**: `www.example.com/apiv2/grabaciones/{idCursoAbierto}`
--   **Parámetros de URL (Path Parameters)**
-    | Parámetro        | Tipo    | Requerido | Descripción                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idCursoAbierto` | integer | Sí       | El ID numérico del curso del que se desean obtener las grabaciones.      |
+### Cursos
 
--   **Respuesta Exitosa (200 OK)**
-    Devuelve un arreglo de objetos JSON, donde cada objeto representa una grabación. El arreglo está ordenado de la más reciente a la más antigua. Si no hay grabaciones, devuelve un arreglo vacío `[]`.
-    | Campo         | Tipo   | Descripción                                                              |
-    |---------------|--------|--------------------------------------------------------------------------|
-    | `recordId`      | string | El ID único de la grabación, utilizado para construir la URL.            |
-    | `playbackUrl`   | string | La URL completa para ver la grabación en un navegador.                   |
-    | `createdAt`     | string | La fecha en que se creó la grabación, en formato `YYYY-MM-DD`.           |
+#### `DELETE /cursos/{idCursoAbierto}`
 
--   **JSON de Ejemplo (Response)**
+Elimina un curso abierto y cancela las invitaciones de calendario asociadas.
+
+-   **Parámetros de URL**:
+    -   `idCursoAbierto` (integer, requerido): El ID del curso a eliminar.
+-   **Respuesta Exitosa (204 No Content)**: El curso fue eliminado.
+-   **Respuesta de Error (404 Not Found)**: No se encontró el curso con el ID especificado.
+
+### Grabaciones
+
+#### `GET /grabaciones/{idCursoAbierto}`
+
+Obtiene las URLs de las grabaciones para un curso abierto.
+
+-   **Parámetros de URL**:
+    -   `idCursoAbierto` (integer, requerido): El ID del curso.
+-   **Respuesta Exitosa (200 OK) (`List<GrabacionDto>`)**:
     ```json
     [
         {
-            "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-            "playbackUrl": "www.example.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-            "createdAt": "2025-09-12"
-        },
-        {
-            "recordId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-            "playbackUrl": "www.example.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-            "createdAt": "2025-09-10"
+            "recordId": "string",
+            "playbackUrl": "string",
+            "createdAt": "datetime"
         }
     ]
     ```
+-   **Respuesta de Error (404 Not Found)**: No se encontró el curso con el ID especificado.
 
-#### 4. Eliminar un Curso
-Elimina un curso abierto y todas sus invitaciones asociadas.
--   **Método**: `DELETE`
--   **URL**: `/cursos/{idCursoAbierto}`
--   **URL Completa**: `www.example.com/apiv2/cursos/{idCursoAbierto}`
--   **Parámetros de URL (Path Parameters)**
-    | Parámetro | Tipo | Requerido | Descripción                                            |
-    |-----------|------|----------|--------------------------------------------------------|
-    | `idCursoAbierto`    | integer | Sí       | El identificador único del curso que se desea eliminar. |
+### Sesiones
 
--   **Respuesta Exitosa (204 No Content)**
-    Si la eliminación es exitosa, la API responderá con un código de estado 204 y sin cuerpo de respuesta.
--   **Respuestas de Error**
-    -   `404 Not Found`: Si no se encuentra el curso con el `idCursoAbierto` proporcionado.
-    -   `500 Internal Server Error`: Si ocurre un error en la base de datos durante la eliminación.
+#### `POST /reprogramar-sesion`
 
-#### 5. Reprogramar una Sesión
-Reprograma una sesión específica de un curso abierto, actualizando su fecha.
--   **Método**: `POST`
--   **URL**: `/reprogramar-sesion`
--   **URL Completa**: `www.example.com/apiv2/reprogramar-sesion`
--   **Cuerpo de la petición (Request Body)**
+Reprograma una sesión específica de un curso, actualizando el evento en el calendario.
+
+-   **Cuerpo de la Petición (`ReprogramarSesionRequest`)**:
     ```json
     {
-        "idCursoAbierto": "string",
+        "idCursoAbierto": 0,
         "sesionNumero": 0,
-        "fechaNuevaSesion": "2025-11-05"
+        "fechaOriginalSesion": "2025-11-18",
+        "fechaNuevaSesion": "2025-11-18"
     }
     ```
--   **Respuesta Exitosa (200 OK)**
-    Si la sesión se reprograma con éxito, la API responderá con un código de estado 200 y sin cuerpo de respuesta.
--   **Respuestas de Error**
-    -   `400 Bad Request`: Si los datos de la petición son inválidos o si la operación no es posible (ej. sesión no encontrada).
-    -   `500 Internal Server Error`: Si ocurre un error inesperado en el servidor.
+-   **Respuesta Exitosa (200 OK)**: La sesión fue reprogramada.
+-   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. la sesión no existe).
 
 ## Historial de Cambios
+
+### 18-11-2025
+
+-   **Corrección en Reprogramación de Sesiones**: Se solucionó un error en la lógica de reprogramación de sesiones (`ReprogramarSesionAsync`) que impedía la creación de eventos en Google Calendar para sesiones de secuencia baja o media. Ahora, el evento se crea correctamente en la fecha solicitada, asegurando que todas las sesiones reprogramadas se reflejen en el calendario.
 
 ### 06-11-2025
 

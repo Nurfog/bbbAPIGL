@@ -41,7 +41,7 @@ public class MySqlCursoRepository : ICursoRepository
                 SELECT alu.Email 
                 FROM sige_sam_v3.detallecontrato as detcon 
                 INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
-                WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCurso";
+                WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCurso AND idtiporegistroacademico not in(2,3,4,17)";
             
             await using var command = new MySqlCommand(sql, connection);
             
@@ -79,7 +79,7 @@ public class MySqlCursoRepository : ICursoRepository
                 SELECT alu.idAlumno, alu.Email 
                 FROM sige_sam_v3.detallecontrato as detcon 
                 INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
-                WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCursoAbierto";
+                WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCursoAbierto AND idtiporegistroacademico not in(2,3,4,17)";
             
             await using var command = new MySqlCommand(sql, connection);
             
