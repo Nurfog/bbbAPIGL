@@ -695,4 +695,47 @@ public class MySqlCursoRepository : ICursoRepository
             throw;
         }
     }
+
+    public async Task<bool> GuardarDatosSalaEnCursoAsync(CursoAbiertoSala sala)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"
+                INSERT INTO cursosabiertosbbb 
+                (idCursoAbierto, roomId, urlSala, claveModerador, claveEspectador, meetingId, friendlyId, recordId, nombreSala, idCalendario)
+                VALUES (@IdCursoAbierto, @RoomId, @UrlSala, @ClaveModerador, @ClaveEspectador, @MeetingId, @FriendlyId, @RecordId, @NombreSala, @IdCalendario)
+                ON DUPLICATE KEY UPDATE 
+                    roomId = @RoomId, 
+                    urlSala = @UrlSala, 
+                    claveModerador = @ClaveModerador, 
+                    claveEspectador = @ClaveEspectador, 
+                    meetingId = @MeetingId, 
+                    friendlyId = @FriendlyId, 
+                    recordId = @RecordId, 
+                    nombreSala = @NombreSala";
+
+            await using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@IdCursoAbierto", sala.IdCursoAbierto);
+            command.Parameters.AddWithValue("@RoomId", sala.RoomId);
+            command.Parameters.AddWithValue("@UrlSala", sala.UrlSala);
+            command.Parameters.AddWithValue("@ClaveModerador", sala.ClaveModerador);
+            command.Parameters.AddWithValue("@ClaveEspectador", sala.ClaveEspectador);
+            command.Parameters.AddWithValue("@MeetingId", sala.MeetingId);
+            command.Parameters.AddWithValue("@FriendlyId", sala.FriendlyId);
+            command.Parameters.AddWithValue("@RecordId", sala.RecordId);
+            command.Parameters.AddWithValue("@NombreSala", sala.NombreSala);
+            command.Parameters.AddWithValue("@IdCalendario", sala.IdCalendario ?? (object)DBNull.Value);
+
+            var rowsAffected = await command.ExecuteNonQueryAsync();
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al guardar los datos de la sala en MySQL para el curso: {IdCursoAbierto}", sala.IdCursoAbierto);
+            throw;
+        }
+    }
 }

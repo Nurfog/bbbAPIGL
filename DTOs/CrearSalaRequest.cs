@@ -22,4 +22,10 @@ public class CrearSalaRequest
     [Required]
     [EmailAddress]
     public string EmailCreador { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Obtiene o establece el ID del curso abierto al que se asociará la sala.
+    /// </summary>
+    [Required]
+    public int IdCursoAbierto { get; set; }
 }

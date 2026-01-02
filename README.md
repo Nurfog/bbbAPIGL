@@ -22,10 +22,12 @@ El objetivo principal es simplificar la administración de entornos de aprendiza
 
 Para compilar y ejecutar este proyecto, necesitarás:
 
--   **SDK de .NET 9.0**
+-   **sdk de .net 9.0**
 -   **Bases de Datos**:
-    -   PostgreSQL (para `SalaRepository`)
-    -   MySQL (para `MySqlCursoRepository`)
+    -   PostgreSQL (para `SalaRepository` - Configurada en puerto **5433** para entornos Docker)
+    -   MySQL (para `MySqlCursoRepository` - Base de datos central `sige_sam_v3`)
+-   **Servidores Web**:
+    -   Nginx (como Proxy Inverso, ver sección de [Nginx](#configuración-de-nginx))
 -   **Servicios Externos**:
     -   Cuenta de Google Cloud con API de Calendar y Gmail habilitadas.
     -   Servicio de almacenamiento compatible con S3.
@@ -157,13 +159,15 @@ Todos los endpoints están prefijados con `/apiv2`.
 
 #### `POST /salas`
 
-Crea una nueva sala de reuniones virtual.
+Crea una nueva sala de reuniones virtual y la vincula automáticamente a un curso en MySQL.
 
+-   **Lógica Inteligente**: Si ya existe una sala para el `idCursoAbierto` especificado, el sistema devuelve los datos de la sala existente en lugar de crear una nueva.
 -   **Cuerpo de la Petición (`CrearSalaRequest`)**:
     ```json
     {
         "nombre": "string",
-        "emailCreador": "string"
+        "emailCreador": "string",
+        "idCursoAbierto": 0
     }
     ```
 -   **Respuesta Exitosa (201 Created) (`CrearSalaResponse`)**:
@@ -297,6 +301,14 @@ Reprograma una sesión específica de un curso, actualizando el evento en el cal
 -   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. la sesión no existe).
 
 ## Historial de Cambios
+
+### 02-01-2026
+
+-   **Lógica de Creación Inteligente**: Se modificó `CrearNuevaSalaAsync` para verificar la existencia previa de una sala por `idCursoAbierto`. Si existe, se retornan los datos actuales, evitando duplicidad en PostgreSQL y BigBlueButton.
+-   **Sincronización Automática con MySQL**: Al crear una sala, la API ahora vincula automáticamente el `roomId` y las claves en la tabla `cursosabiertosbbb` y realiza una sincronización inmediata del horario (fechas y días) desde el sistema central `sige_sam_v3`.
+-   **Robustez en Despliegue**: Se refinó el script `publish.ps1` para automatizar la limpieza, compilación, transferencia vía SCP a carpeta temporal y reinicio de servicios (`systemd` y `nginx`) con un solo comando.
+-   **Corrección de Infraestructura (Nginx)**: Se identificó y resolvió un conflicto de rutas mediante el uso del modificador `^~ /apiv2/` en la configuración de Nginx, evitando que las reglas internas de BigBlueButton interceptaran las peticiones a la API.
+-   **Ajuste de PostgreSQL**: Se configuró la conexión al puerto `5433` para apuntar correctamente al contenedor Docker de Greenlight v3, evitando conflictos con instancias locales del host.
 
 ### 18-11-2025
 

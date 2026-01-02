@@ -39,11 +39,16 @@ public class SalasController : ControllerBase
             var response = await _salaService.CrearNuevaSalaAsync(request);
             return CreatedAtAction(null, response);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error inesperado al crear la sala.");
-            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
-        }
+        catch (ApplicationException appEx)
+            {
+                _logger.LogWarning(appEx, "Error al crear la sala: {Message}", appEx.Message);
+                return BadRequest(new { error = appEx.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error inesperado al crear la sala.");
+                return StatusCode(500, new { error = "Ocurrió un error interno en el servidor." });
+            }
     }
 
     /// <summary>

@@ -92,5 +92,11 @@ public interface ICursoRepository
     Task<bool> ReprogramarSesionAsync(int idCursoAbierto, int sesionNumero, DateOnly fechaNuevaSesion, string? idCalendario);
     Task<CursoAbiertoSesion?> ObtenerSesionAsync(int idCursoAbierto, int sesionNumero);
     Task ActualizarHorarioCursoAsync(int idCursoAbierto, DateTime fechaInicio, DateTime fechaTermino, string? dias, DateTime horaInicio, DateTime horaTermino);
+
+    /// <summary>
+    /// Guarda los datos de la sala BBB asociados a un curso en la tabla cursosabiertosbbb.
+    /// Realiza un insert o un update según corresponda.
+    /// </summary>
+    Task<bool> GuardarDatosSalaEnCursoAsync(CursoAbiertoSala sala);
 }
     

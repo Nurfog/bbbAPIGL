@@ -53,40 +53,112 @@ public class SalaService : ISalaService
     /// <exception cref="ApplicationException">Se lanza si ocurre un error al guardar la sala.</exception>
     public async Task<CrearSalaResponse> CrearNuevaSalaAsync(CrearSalaRequest request)
     {
-        var meetingId = GeneraMeetingId();
-        var friendlyId = GeneraFriendlyId();
-        var claveModerador = GeneraRandomPassword(8);
-        var claveEspectador = GeneraRandomPassword(8);
-        var recordId = $"{meetingId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
-        var publicUrl = _configuration["SalaSettings:PublicUrl"];
-
-        var nuevaSala = new Sala
+        // 1. Verificar si ya existe una sala para este curso en MySQL
+        var salaExistente = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+        if (salaExistente != null && !string.IsNullOrEmpty(salaExistente.RoomId))
         {
-            Nombre = request.Nombre,
-            MeetingId = meetingId,
-            FriendlyId = friendlyId,
-            ClaveModerador = claveModerador,
-            ClaveEspectador = claveEspectador
-        };
-
-        Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
-
-        if (newRoomId is null)
-        {
-            throw new ApplicationException("Hubo un problema al guardar la sala en la base de datos.");
+            _logger.LogInformation("Ya existe una sala para el curso {IdCursoAbierto}. Retornando datos existentes.", request.IdCursoAbierto);
+            return new CrearSalaResponse
+            {
+                RoomId = Guid.TryParse(salaExistente.RoomId, out var existingGuid) ? existingGuid : Guid.Empty,
+                NombreSala = salaExistente.NombreSala ?? request.Nombre,
+                UrlSala = salaExistente.UrlSala ?? string.Empty,
+                ClaveModerador = salaExistente.ClaveModerador ?? string.Empty,
+                ClaveEspectador = salaExistente.ClaveEspectador ?? string.Empty,
+                MeetingId = salaExistente.MeetingId ?? string.Empty,
+                RecordId = salaExistente.RecordId ?? string.Empty,
+                FriendlyId = salaExistente.FriendlyId ?? string.Empty
+            };
         }
+
+        // 2. Si no existe, proceder con la creación normal
+        var meetingId = GeneraMeetingId();
+            var friendlyId = GeneraFriendlyId();
+            var claveModerador = GeneraRandomPassword(8);
+            var claveEspectador = GeneraRandomPassword(8);
+            var recordId = $"{meetingId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            var publicUrl = _configuration["SalaSettings:PublicUrl"];
+
+            if (string.IsNullOrWhiteSpace(publicUrl))
+            {
+                _logger.LogWarning("PublicUrl no está configurado en appsettings. Se usará una URL vacía.");
+                publicUrl = string.Empty;
+            }
+
+            var nuevaSala = new Sala
+            {
+                Nombre = request.Nombre,
+                MeetingId = meetingId,
+                FriendlyId = friendlyId,
+                ClaveModerador = claveModerador,
+                ClaveEspectador = claveEspectador
+            };
+
+            Guid? newRoomId = null;
+            try
+            {
+                newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // El usuario creador no existe o falta información requerida
+                _logger.LogError(ex, "Error al crear la sala: el usuario creador no fue encontrado o datos inválidos.");
+                throw new ApplicationException("El usuario creador especificado no existe.");
+            }
+
+            if (newRoomId == null)
+            {
+                // Falló la inserción en la base de datos por alguna razón inesperada
+                _logger.LogError("Failed to create a new room in the database for request: {Request}", request);
+                throw new ApplicationException("No se pudo crear la sala en la base de datos.");
+            }
 
         var apiResponse = new CrearSalaResponse
         {
             RoomId = newRoomId.Value,
             NombreSala = nuevaSala.Nombre,
-            UrlSala = $"{publicUrl}/rooms/{nuevaSala.FriendlyId}/join",
+            UrlSala = string.IsNullOrEmpty(publicUrl) ? string.Empty : $"{publicUrl}/rooms/{nuevaSala.FriendlyId}/join",
             ClaveModerador = nuevaSala.ClaveModerador,
             ClaveEspectador = nuevaSala.ClaveEspectador,
             MeetingId = nuevaSala.MeetingId,
             RecordId = recordId,
             FriendlyId = nuevaSala.FriendlyId
         };
+
+        // --- Vincular la sala al curso en MySQL ---
+        try
+        {
+            var cursoSala = new CursoAbiertoSala
+            {
+                IdCursoAbierto = request.IdCursoAbierto,
+                RoomId = apiResponse.RoomId.ToString(),
+                UrlSala = apiResponse.UrlSala,
+                ClaveModerador = apiResponse.ClaveModerador,
+                ClaveEspectador = apiResponse.ClaveEspectador,
+                MeetingId = apiResponse.MeetingId,
+                FriendlyId = apiResponse.FriendlyId,
+                RecordId = apiResponse.RecordId,
+                NombreSala = apiResponse.NombreSala
+            };
+
+            await _cursoRepository.GuardarDatosSalaEnCursoAsync(cursoSala);
+            _logger.LogInformation("Sala {RoomId} vinculada exitosamente al curso {IdCursoAbierto} en MySQL.", apiResponse.RoomId, request.IdCursoAbierto);
+
+            // --- Sincronizar Horario desde la fuente externa inmediatamente ---
+            var horarioActualizado = await _cursoRepository.ActualizarHorarioDesdeFuenteExternaAsync(request.IdCursoAbierto);
+            if (horarioActualizado)
+            {
+                _logger.LogInformation("Horario para el curso {IdCursoAbierto} sincronizado correctamente desde la fuente externa.", request.IdCursoAbierto);
+            }
+            else
+            {
+                _logger.LogWarning("No se encontró información de horario en la fuente externa para el curso {IdCursoAbierto}. Es posible que el curso no exista en el sistema central.", request.IdCursoAbierto);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al vincular o sincronizar el curso {IdCursoAbierto} en MySQL.", request.IdCursoAbierto);
+        }
 
         return apiResponse;
     }
