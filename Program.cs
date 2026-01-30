@@ -1,5 +1,6 @@
 using bbbAPIGL.Repositories;
 using bbbAPIGL.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,16 +21,19 @@ builder.Services.AddTransient<IEmailService, GmailService>();
 var app = builder.Build();
 
 // 3. Configurar el pipeline de peticiones HTTP
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// En producción, Nginx maneja HTTPS. HttpsRedirection puede causar problemas si no está bien configurado.
+// app.UseHttpsRedirection();
 app.MapControllers();
 
 // 4. Ejecutar la aplicación

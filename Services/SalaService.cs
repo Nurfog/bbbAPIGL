@@ -205,7 +205,31 @@ public class SalaService : ISalaService
         var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
         if (sala == null)
         {
-            throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
+            _logger.LogInformation("No se encontró registro para el curso {IdCursoAbierto} en cursosabiertosbbb. Intentando inicialización automática.", request.IdCursoAbierto);
+            
+            // Intentar inicializar con datos por defecto
+            var createRequest = new CrearSalaRequest 
+            { 
+                IdCursoAbierto = request.IdCursoAbierto, 
+                Nombre = $"Sala de Clase (ID {request.IdCursoAbierto})", 
+                EmailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
+            };
+            
+            try 
+            {
+                await CrearNuevaSalaAsync(createRequest);
+                sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+            }
+            catch (Exception ex)
+            {
+                 _logger.LogError(ex, "Error durante la inicialización automática del curso {IdCursoAbierto}.", request.IdCursoAbierto);
+                 throw new InvalidOperationException($"El curso {request.IdCursoAbierto} no pudo ser inicializado automáticamente.", ex);
+            }
+            
+            if (sala == null)
+            {
+                throw new InvalidOperationException($"El curso abierto {request.IdCursoAbierto} no fue encontrado y la inicialización automática falló.");
+            }
         }
 
         var alumnosConCorreos = await _cursoRepository.ObtenerAlumnosConCorreosPorCursoAsync(request.IdCursoAbierto);
@@ -398,7 +422,31 @@ public class SalaService : ISalaService
         var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
         if (sala == null)
         {
-            throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
+            _logger.LogInformation("No se encontró registro para el curso {IdCursoAbierto} en cursosabiertosbbb. Intentando inicialización automática.", request.IdCursoAbierto);
+            
+            // Intentar inicializar con datos por defecto
+            var createRequest = new CrearSalaRequest 
+            { 
+                IdCursoAbierto = request.IdCursoAbierto, 
+                Nombre = $"Sala de Clase (ID {request.IdCursoAbierto})", 
+                EmailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
+            };
+            
+            try 
+            {
+                await CrearNuevaSalaAsync(createRequest);
+                sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+            }
+            catch (Exception ex)
+            {
+                 _logger.LogError(ex, "Error durante la inicialización automática del curso {IdCursoAbierto}.", request.IdCursoAbierto);
+                 throw new InvalidOperationException($"El curso {request.IdCursoAbierto} no pudo ser inicializado automáticamente.", ex);
+            }
+            
+            if (sala == null)
+            {
+                throw new InvalidOperationException($"El curso abierto {request.IdCursoAbierto} no fue encontrado y la inicialización automática falló.");
+            }
         }
 
         if (sala.FechaInicio == default || sala.FechaTermino == default || string.IsNullOrEmpty(sala.Dias) || sala.HoraInicio == default || sala.HoraTermino == default)
@@ -538,7 +586,31 @@ public class SalaService : ISalaService
         var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
         if (sala == null)
         {
-            throw new InvalidOperationException("El curso abierto especificado no fue encontrado.");
+            _logger.LogInformation("No se encontró registro para el curso {IdCursoAbierto} en cursosabiertosbbb. Intentando inicialización automática.", request.IdCursoAbierto);
+            
+            // Intentar inicializar con datos por defecto
+            var createRequest = new CrearSalaRequest 
+            { 
+                IdCursoAbierto = request.IdCursoAbierto, 
+                Nombre = $"Sala de Clase (ID {request.IdCursoAbierto})", 
+                EmailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
+            };
+            
+            try 
+            {
+                await CrearNuevaSalaAsync(createRequest);
+                sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(request.IdCursoAbierto);
+            }
+            catch (Exception ex)
+            {
+                 _logger.LogError(ex, "Error durante la inicialización automática del curso {IdCursoAbierto}.", request.IdCursoAbierto);
+                 throw new InvalidOperationException($"El curso {request.IdCursoAbierto} no pudo ser inicializado automáticamente.", ex);
+            }
+            
+            if (sala == null)
+            {
+                throw new InvalidOperationException($"El curso abierto {request.IdCursoAbierto} no fue encontrado y la inicialización automática falló.");
+            }
         }
 
         if (string.IsNullOrEmpty(sala.IdCalendario))
@@ -805,5 +877,103 @@ public class SalaService : ISalaService
         }
 
         _logger.LogInformation("Sincronización de calendario para el curso {IdCursoAbierto} completada. Se cancelaron {Count} eventos.", idCursoAbierto, eventosCancelados);
+    }
+
+    /// <summary>
+    /// Obtiene el estado de una sala en los diferentes sistemas (SAM, Greenlight, BBB).
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Un objeto SalaStatusDto con el estado de la sala.</returns>
+    public async Task<SalaStatusDto> ObtenerEstadoSalaAsync(int idCursoAbierto)
+    {
+        var status = new SalaStatusDto
+        {
+            ExisteEnSam = false,
+            ExisteEnGreenlight = false,
+            EstaActivaEnBBB = false,
+            UrlSala = null,
+            Detalles = null
+        };
+
+        // 1. Verificar en SAM (MySQL)
+        var sala = await _cursoRepository.ObtenerDatosSalaPorCursoAsync(idCursoAbierto);
+        if (sala != null)
+        {
+            status.ExisteEnSam = true;
+            status.UrlSala = sala.UrlSala;
+            status.Detalles = new SalaDetallesDto
+            {
+                IdCursoAbierto = idCursoAbierto,
+                RoomId = sala.RoomId,
+                MeetingId = sala.MeetingId,
+                FriendlyId = sala.FriendlyId,
+                NombreSala = sala.NombreSala
+            };
+
+            // 2. Verificar en Greenlight (Postgres)
+            if (Guid.TryParse(sala.RoomId, out var roomId))
+            {
+                var greenlightRoom = await _salaRepository.ObtenerSalaPorIdAsync(roomId);
+                status.ExisteEnGreenlight = greenlightRoom != null;
+            }
+
+            // 3. Verificar si está activa en BBB
+            if (!string.IsNullOrEmpty(sala.MeetingId))
+            {
+                status.EstaActivaEnBBB = await IsMeetingRunningAsync(sala.MeetingId);
+            }
+        }
+
+        return status;
+    }
+
+    /// <summary>
+    /// Verifica si una reunión está activa en BigBlueButton.
+    /// </summary>
+    /// <param name="meetingId">El ID de la reunión.</param>
+    /// <returns>True si la reunión está activa, false en caso contrario.</returns>
+    private async Task<bool> IsMeetingRunningAsync(string meetingId)
+    {
+        try
+        {
+            var baseUrl = _configuration["BigBlueButtonApi:BaseUrl"];
+            var secret = _configuration["BigBlueButtonApi:Secret"];
+
+            if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(secret))
+            {
+                _logger.LogWarning("BigBlueButton API configuration is missing.");
+                return false;
+            }
+
+            var queryString = $"meetingID={Uri.EscapeDataString(meetingId)}";
+            var checksum = CalculateBBBChecksum("isMeetingRunning", queryString, secret);
+            var url = $"{baseUrl}/isMeetingRunning?{queryString}&checksum={checksum}";
+
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetStringAsync(url);
+
+            // Parse XML response to check if meeting is running
+            return response.Contains("<running>true</running>");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al verificar si la reunión {MeetingId} está activa en BBB.", meetingId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Calcula el checksum para las llamadas a la API de BigBlueButton.
+    /// </summary>
+    /// <param name="apiCall">El nombre de la llamada API.</param>
+    /// <param name="queryString">Los parámetros de la consulta.</param>
+    /// <param name="secret">El secreto compartido de BBB.</param>
+    /// <returns>El checksum SHA-1.</returns>
+    private static string CalculateBBBChecksum(string apiCall, string queryString, string secret)
+    {
+        var data = $"{apiCall}{queryString}{secret}";
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(data));
+        return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 }

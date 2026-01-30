@@ -91,6 +91,7 @@ public class SalasController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Operación inválida procesada: {Message}", ex.Message);
             return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
@@ -118,6 +119,7 @@ public class SalasController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Operación inválida procesada: {Message}", ex.Message);
             return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
@@ -146,6 +148,7 @@ public class SalasController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Operación inválida procesada: {Message}", ex.Message);
             return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
@@ -216,12 +219,34 @@ public class SalasController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Operación inválida procesada: {Message}", ex.Message);
             return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado al reprogramar la sesión.");
             return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al reprogramar la sesión." });
+        }
+    }
+
+    /// <summary>
+    /// Obtiene el estado de una sala en los diferentes sistemas (SAM, Greenlight, BBB).
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Un objeto SalaStatusDto con el estado de la sala.</returns>
+    [HttpGet("salas/{idCursoAbierto:int}/status")]
+    [ProducesResponseType(typeof(SalaStatusDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ObtenerEstadoSala(int idCursoAbierto)
+    {
+        try
+        {
+            var status = await _salaService.ObtenerEstadoSalaAsync(idCursoAbierto);
+            return Ok(status);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al obtener el estado de la sala para el curso {IdCursoAbierto}.", idCursoAbierto);
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al obtener el estado de la sala." });
         }
     }
 }

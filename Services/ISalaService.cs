@@ -38,4 +38,10 @@ public interface ISalaService
     Task<bool> EliminarCursoAsync(int idCursoAbierto);
     Task<bool> ReprogramarSesionAsync(ReprogramarSesionRequest request);
     Task SincronizarCalendarioAsync(int idCursoAbierto);
+    /// <summary>
+    /// Obtiene el estado de una sala en los diferentes sistemas (SAM, Greenlight, BBB).
+    /// </summary>
+    /// <param name="idCursoAbierto">El ID del curso abierto.</param>
+    /// <returns>Una tarea que representa la operación asíncrona. El resultado es un objeto SalaStatusDto.</returns>
+    Task<SalaStatusDto> ObtenerEstadoSalaAsync(int idCursoAbierto);
 }
