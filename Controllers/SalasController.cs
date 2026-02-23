@@ -81,9 +81,10 @@ public class SalasController : ControllerBase
     /// <returns>Un objeto EnviarInvitacionCursoResponse con el resultado de la operación.</returns>
     [HttpPost("invitaciones/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> EnviarInvitaciones([FromRoute] int idCursoAbierto)
+    public async Task<IActionResult> EnviarInvitaciones([FromRoute] int idCursoAbierto, [FromBody] EnviarInvitacionCursoRequest? requestBody)
     {
-        var request = new EnviarInvitacionCursoRequest { IdCursoAbierto = idCursoAbierto };
+        var request = requestBody ?? new EnviarInvitacionCursoRequest();
+        request.IdCursoAbierto = idCursoAbierto;
         try
         {
             var response = await _salaService.EnviarInvitacionesCursoAsync(request);
@@ -109,9 +110,11 @@ public class SalasController : ControllerBase
     /// <returns>Un objeto EnviarInvitacionCursoResponse con el resultado de la operación.</returns>
     [HttpPost("invitaciones/individual/{idAlumno}/{idCursoAbierto:int}")]
     [ProducesResponseType(typeof(EnviarInvitacionCursoResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> EnviarInvitacionIndividual([FromRoute] string idAlumno, [FromRoute] int idCursoAbierto)
+    public async Task<IActionResult> EnviarInvitacionIndividual([FromRoute] string idAlumno, [FromRoute] int idCursoAbierto, [FromBody] EnviarInvitacionIndividualRequest? requestBody)
     {
-        var request = new EnviarInvitacionIndividualRequest { IdAlumno = idAlumno, IdCursoAbierto = idCursoAbierto };
+        var request = requestBody ?? new EnviarInvitacionIndividualRequest();
+        request.IdAlumno = idAlumno;
+        request.IdCursoAbierto = idCursoAbierto;
         try
         {
             var response = await _salaService.EnviarInvitacionIndividualAsync(request);
@@ -125,7 +128,7 @@ public class SalasController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado al enviar invitación individual.");
-            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al enviar la invitación." });
+            return StatusCode(500, new { error = "Ocurrió un error interno en el servidor al enviar la invitación individual." });
         }
     }
 

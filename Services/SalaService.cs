@@ -212,7 +212,7 @@ public class SalaService : ISalaService
             { 
                 IdCursoAbierto = request.IdCursoAbierto, 
                 Nombre = $"Sala de Clase (ID {request.IdCursoAbierto})", 
-                EmailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
+                EmailCreador = request.EmailCreador ?? _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
             };
             
             try 
@@ -429,7 +429,7 @@ public class SalaService : ISalaService
             { 
                 IdCursoAbierto = request.IdCursoAbierto, 
                 Nombre = $"Sala de Clase (ID {request.IdCursoAbierto})", 
-                EmailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
+                EmailCreador = request.EmailCreador ?? _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
             };
             
             try 
@@ -593,7 +593,7 @@ public class SalaService : ISalaService
             { 
                 IdCursoAbierto = request.IdCursoAbierto, 
                 Nombre = $"Sala de Clase (ID {request.IdCursoAbierto})", 
-                EmailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
+                EmailCreador = request.EmailCreador ?? _configuration["SalaSettings:DefaultRoomCreatorEmail"] ?? "norteamericanoonline@norteamericano.cl" 
             };
             
             try 

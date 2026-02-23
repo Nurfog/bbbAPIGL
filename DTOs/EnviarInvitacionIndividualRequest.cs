@@ -20,4 +20,9 @@ public class EnviarInvitacionIndividualRequest
     /// </summary>
     [Required]
     public int IdCursoAbierto { get; set; }
+
+    /// <summary>
+    /// Correo electrónico del creador de la sala (opcional).
+    /// </summary>
+    public string? EmailCreador { get; set; }
 }

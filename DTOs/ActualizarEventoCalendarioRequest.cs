@@ -38,4 +38,8 @@ public class ActualizarEventoCalendarioRequest
     /// Obtiene o establece la hora de término del evento.
     /// </summary>
     public DateTime? HoraTermino { get; set; }
+    /// <summary>
+    /// Correo electrónico del creador de la sala (opcional).
+    /// </summary>
+    public string? EmailCreador { get; set; }
 }

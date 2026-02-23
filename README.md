@@ -98,11 +98,16 @@ Para poder ejecutar el proyecto, es necesario configurar las credenciales y ajus
     *   `S3Settings:BucketName`: Nombre del bucket S3 para grabaciones.
     *   `S3Settings:Region`: Región de AWS donde se encuentra el bucket S3.
     *   `SalaSettings:PublicUrl`: URL pública base para acceder a las salas y grabaciones de BBB.
+    *   `SalaSettings:DefaultRoomCreatorEmail`: Correo electrónico por defecto para la creación de salas (ej. "norteamericanoonline@norteamericano.cl").
 
 2.  **Credenciales de Google**: Renombre `google-credentials.example.json` a `google-credentials.json` y añada las credenciales de su cuenta de servicio de Google Cloud para la integración con Google Calendar y Gmail. Asegúrese de que la cuenta de servicio tenga los permisos necesarios para gestionar eventos de calendario y enviar correos electrónicos.
     *   `GoogleCalendarSettings:CredentialsFile`: Ruta al archivo `google-credentials.json`.
     *   `GoogleCalendarSettings:UserToImpersonate`: Correo electrónico del usuario que será suplantado para crear eventos de calendario y enviar correos.
     *   `GoogleCalendarSettings:DefaultTimeZone`: Zona horaria por defecto para los eventos de calendario (ej. "America/Santiago").
+
+3.  **Configuración de API BigBlueButton**:
+    *   `BigBlueButtonApi:BaseUrl`: URL base de la API de BBB (ej. `https://bbb.example.com/bigbluebutton/api`).
+    *   `BigBlueButtonApi:Secret`: Secreto compartido (salt) de la API de BBB.
 
 ## Documentación del Código
 
@@ -120,9 +125,10 @@ Ubicados en la carpeta `DTOs`, definen la estructura de los datos que se envían
 
 -   `CrearSalaRequest`, `CrearSalaResponse`: Para la creación de salas.
 -   `EliminarSalaRequest`: Para la eliminación de salas (aunque el endpoint usa un `Guid` directamente).
--   `EnviarInvitacionCursoRequest`, `EnviarInvitacionCursoResponse`: Para el envío de invitaciones a cursos.
--   `EnviarInvitacionIndividualRequest`: Para el envío de invitaciones individuales.
+-   `EnviarInvitacionCursoRequest`, `EnviarInvitacionCursoResponse`: Para el envío de invitaciones a cursos. Acepta opcionalmente `EmailCreador`.
+-   `EnviarInvitacionIndividualRequest`: Para el envío de invitaciones individuales. Acepta opcionalmente `EmailCreador`.
 -   `GrabacionDto`: Para la información de grabaciones.
+-   `SalaStatusDto`: Para la respuesta del diagnóstico de estado de una sala.
 
 ### 3. Models
 
@@ -192,6 +198,23 @@ Elimina una sala existente.
 -   **Respuesta Exitosa (204 No Content)**: La sala fue eliminada.
 -   **Respuesta de Error (404 Not Found)**: No se encontró la sala con el ID especificado.
 
+#### `GET /salas/{idCursoAbierto}/status`
+
+Obtiene un diagnóstico del estado de una sala en los diferentes sistemas (SAM, Greenlight, BBB).
+
+-   **Parámetros de URL**:
+    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
+-   **Respuesta Exitosa (200 OK) (`SalaStatusDto`)**:
+    ```json
+    {
+        "existeEnSam": true,
+        "existeEnGreenlight": true,
+        "estaActivaEnBBB": false,
+        "urlSala": "string",
+        "detalles": { ... }
+    }
+    ```
+
 ### Invitaciones
 
 #### `POST /invitaciones/{idCursoAbierto}`
@@ -200,6 +223,12 @@ Envía invitaciones por correo electrónico a todos los participantes de un curs
 
 -   **Parámetros de URL**:
     -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
+-   **Cuerpo de la Petición (opcional, `EnviarInvitacionCursoRequest`)**:
+    ```json
+    {
+        "emailCreador": "string"
+    }
+    ```
 -   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
     ```json
     {
@@ -216,6 +245,12 @@ Envía una invitación individual a un alumno específico para un curso abierto.
 -   **Parámetros de URL**:
     -   `idAlumno` (string, requerido): El ID del alumno.
     -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
+-   **Cuerpo de la Petición (opcional, `EnviarInvitacionIndividualRequest`)**:
+    ```json
+    {
+        "emailCreador": "string"
+    }
+    ```
 -   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
     ```json
     {
@@ -239,7 +274,8 @@ Actualiza las invitaciones y el evento de calendario para un curso abierto. Úti
         "fechaTermino": "datetime",
         "dias": ["Lunes", "Martes", ...],
         "horaInicio": "string (HH:mm)",
-        "horaTermino": "string (HH:mm)"
+        "horaTermino": "string (HH:mm)",
+        "emailCreador": "string (opcional)"
     }
     ```
 -   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
@@ -301,6 +337,13 @@ Reprograma una sesión específica de un curso, actualizando el evento en el cal
 -   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. la sesión no existe).
 
 ## Historial de Cambios
+
+### 23-02-2026
+
+-   **Diagnóstico Integral**: Nuevo endpoint `/salas/{id}/status` que verifica la sincronización entre SAM (MySQL), Greenlight (PostgreSQL) y el estado de la sesión activa en BigBlueButton.
+-   **Soporte Multi-Creador**: Se habilitó la posibilidad de especificar el correo electrónico del creador en los endpoints de invitaciones. Esto permite que las salas sean propiedad de diferentes usuarios en Greenlight dinámicamente.
+-   **Configuración Centralizada de Creador**: Se añadió `DefaultRoomCreatorEmail` en la configuración para definir el usuario por defecto de todas las salas nuevas.
+-   **Integración con API de BBB**: Implementación de llamadas directas a la API de BigBlueButton (ej. `isMeetingRunning`) con cálculo de checksum seguro.
 
 ### 02-01-2026
 
