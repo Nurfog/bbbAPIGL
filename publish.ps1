@@ -96,4 +96,10 @@ Write-Host "`n¡DESPLIEGUE COMPLETO!" -ForegroundColor Green
 Write-Host "- Archivos en: $RemotePath"
 Write-Host "- Servicio kestrel-bbbapigl reiniciado."
 Write-Host "- Nginx reiniciado."
+Write-Host "- Módulos desplegados: Central (/apiv2) y Empresa (/apiv2/emp)."
+Write-Host "- Nuevos Endpoints Empresa:"
+Write-Host "  - POST /apiv2/emp/salas"
+Write-Host "  - GET  /apiv2/emp/salas/{id}/status"
+Write-Host "  - GET  /apiv2/emp/grabaciones/{id}"
+Write-Host "  - POST /apiv2/emp/reprogramar-sesion"
 exit 0

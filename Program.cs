@@ -12,8 +12,10 @@ builder.Services.AddSwaggerGen();
 // --- Registrar nuestros servicios personalizados ---
 // Scoped: se crea una nueva instancia para cada petición HTTP.
 builder.Services.AddScoped<ISalaService, SalaService>();
+builder.Services.AddScoped<ISalaEmpresaService, SalaEmpresaService>();
 builder.Services.AddScoped<ISalaRepository, SalaRepository>();
 builder.Services.AddScoped<ICursoRepository, MySqlCursoRepository>();
+builder.Services.AddScoped<ICursoEmpresaRepository, MySqlCursoEmpresaRepository>();
 builder.Services.AddScoped<ICalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IAcademicCalendarService, AcademicCalendarService>();
 builder.Services.AddTransient<IEmailService, GmailService>();

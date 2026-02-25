@@ -25,7 +25,8 @@ Para compilar y ejecutar este proyecto, necesitarás:
 -   **sdk de .net 9.0**
 -   **Bases de Datos**:
     -   PostgreSQL (para `SalaRepository` - Configurada en puerto **5433** para entornos Docker)
-    -   MySQL (para `MySqlCursoRepository` - Base de datos central `sige_sam_v3`)
+    -   MySQL (Central): Base de datos `sige_sam_v3` (usada por `MySqlCursoRepository`).
+    -   MySQL (Empresa): Base de datos `sige_sam_empresa` (usada por `MySqlCursoEmpresaRepository`).
 -   **Servidores Web**:
     -   Nginx (como Proxy Inverso, ver sección de [Nginx](#configuración-de-nginx))
 -   **Servicios Externos**:
@@ -94,7 +95,8 @@ Para poder ejecutar el proyecto, es necesario configurar las credenciales y ajus
 
 1.  **Configuración de la aplicación**: Renombre el archivo `appsettings.example.json` a `appsettings.json` y rellene los valores correspondientes a su base de datos (PostgreSQL y MySQL), S3 y BigBlueButton.
     *   `ConnectionStrings:PostgresDb`: Cadena de conexión para la base de datos PostgreSQL (usada por `SalaRepository`).
-    *   `ConnectionStrings:MySqlDb`: Cadena de conexión para la base de datos MySQL (usada por `MySqlCursoRepository`).
+    *   `ConnectionStrings:MySqlDb`: Cadena de conexión para la base de datos MySQL central (`sige_sam_v3`).
+    *   `ConnectionStrings:MySqlDbEmpresa`: Cadena de conexión para la base de datos MySQL de empresas (`sige_sam_empresa`).
     *   `S3Settings:BucketName`: Nombre del bucket S3 para grabaciones.
     *   `S3Settings:Region`: Región de AWS donde se encuentra el bucket S3.
     *   `SalaSettings:PublicUrl`: URL pública base para acceder a las salas y grabaciones de BBB.
@@ -151,7 +153,8 @@ Ubicados en la carpeta `Services`, contienen la lógica de negocio principal y o
 Ubicados en la carpeta `Repositories`, son responsables de la abstracción de la capa de acceso a datos.
 
 -   **`ISalaRepository` / `SalaRepository.cs`**: Proporciona métodos para persistir y recuperar datos de salas en una base de datos PostgreSQL. Incluye operaciones para guardar, eliminar y obtener salas, así como sus IDs de calendario.
--   **`ICursoRepository` / `MySqlCursoRepository.cs`**: Proporciona métodos para interactuar con una base de datos MySQL, obteniendo información de cursos, correos de alumnos y desasociando salas de cursos.
+-   **`ICursoRepository` / `MySqlCursoRepository.cs`**: Acceso a datos para el sistema central `sige_sam_v3`.
+-   **`ICursoEmpresaRepository` / `MySqlCursoEmpresaRepository.cs`**: Acceso a datos para el sistema de empresas `sige_sam_empresa`.
 
 ### 6. Program.cs
 
@@ -159,7 +162,10 @@ Configura la inyección de dependencias, registrando los servicios y repositorio
 
 ## Endpoints de la API
 
-Todos los endpoints están prefijados con `/apiv2`.
+La API cuenta con dos módulos principales diferenciados por su prefijo de ruta:
+
+-   **Módulo Central**: Prefijo `/apiv2`. Incluye integración completa con Google Calendar e invitaciones por correo.
+-   **Módulo Empresa**: Prefijo `/apiv2/emp`. Versión simplificada para la base de datos `sige_sam_empresa` (sin lógica de calendario).
 
 ### Salas
 
@@ -337,6 +343,12 @@ Reprograma una sesión específica de un curso, actualizando el evento en el cal
 -   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. la sesión no existe).
 
 ## Historial de Cambios
+
+### 25-02-2026
+
+-   **Nuevo Módulo Empresa (`/apiv2/emp`)**: Implementación de un nuevo conjunto de endpoints para la gestión de salas vinculadas a la base de datos `sige_sam_empresa`.
+-   **Arquitectura Paralela**: Creación de `MySqlCursoEmpresaRepository` y `SalaEmpresaService` para manejar la lógica de empresas de forma independiente, optimizada para escenarios que no requieren (por ahora) integración con Google Calendar.
+-   **Configuración Dinámica**: Soporte para múltiples cadenas de conexión MySQL en `appsettings.json`.
 
 ### 23-02-2026
 
