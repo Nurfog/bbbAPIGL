@@ -79,7 +79,9 @@ public class MySqlCursoRepository : ICursoRepository
                 SELECT alu.idAlumno, alu.Email 
                 FROM sige_sam_v3.detallecontrato as detcon 
                 INNER JOIN alumnos as alu ON detcon.idAlumno = alu.idAlumno 
-                WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCursoAbierto AND idtiporegistroacademico not in(2,3,4,17)";
+                WHERE detcon.Activo = 1 AND detcon.idCursoAbierto = @IdCursoAbierto 
+                AND alu.Email IS NOT NULL AND alu.Email <> ''
+                AND idtiporegistroacademico not in(2,3,4,17)";
             
             await using var command = new MySqlCommand(sql, connection);
             

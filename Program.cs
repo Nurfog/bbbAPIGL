@@ -1,6 +1,7 @@
 using bbbAPIGL.Repositories;
 using bbbAPIGL.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +32,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapScalarApiReference();
 }
 
 // En producción, Nginx maneja HTTPS. HttpsRedirection puede causar problemas si no está bien configurado.

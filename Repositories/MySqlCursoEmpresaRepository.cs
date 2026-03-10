@@ -501,4 +501,104 @@ public class MySqlCursoEmpresaRepository : ICursoEmpresaRepository
             throw;
         }
     }
+
+    /// <summary>
+    /// Inserta un registro en la tabla `sesionescursos`.
+    /// </summary>
+    public async Task<bool> CrearInvitacionSesionAsync(int id, DateOnly fecha)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"
+                INSERT INTO sige_sam_empresa.sesionescursos
+                (id, Fecha, TipoSesion, Activo)
+                VALUES (@Id, @Fecha, 'NORMAL', 1)";
+
+            await using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Fecha", fecha);
+
+            var rows = await command.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al crear invitación/sesión en EMP con id {Id}", id);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Marca una invitación existente como suspendida y agrega otra con la nueva fecha.
+    /// </summary>
+    public async Task<bool> ModificarInvitacionSesionAsync(int id, DateOnly fechaNueva)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string updateSql = @"
+                UPDATE sige_sam_empresa.sesionescursos
+                SET Activo = 0, TipoSesion = 'SUSPENDIDA'
+                WHERE id = @Id AND Activo = 1";
+
+            await using var updateCommand = new MySqlCommand(updateSql, connection);
+            updateCommand.Parameters.AddWithValue("@Id", id);
+
+            var rowsAffected = await updateCommand.ExecuteNonQueryAsync();
+
+            if (rowsAffected > 0)
+            {
+                const string insertSql = @"
+                    INSERT INTO sige_sam_empresa.sesionescursos
+                    (Fecha, TipoSesion, Activo)
+                    VALUES (@FechaNueva, 'NORMAL', 1)";
+
+                await using var insertCommand = new MySqlCommand(insertSql, connection);
+                insertCommand.Parameters.AddWithValue("@FechaNueva", fechaNueva);
+
+                var insertRows = await insertCommand.ExecuteNonQueryAsync();
+                return insertRows > 0;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al modificar invitación/sesión EMP con id {Id}", id);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Suspende una invitación/sesión activa sin crear un nuevo registro.
+    /// </summary>
+    public async Task<bool> EliminarInvitacionSesionAsync(int id)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"
+                UPDATE sige_sam_empresa.sesionescursos
+                SET Activo = 0, TipoSesion = 'SUSPENDIDA'
+                WHERE id = @Id AND Activo = 1";
+
+            await using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@Id", id);
+
+            var rows = await command.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al eliminar invitación/sesión EMP con id {Id}", id);
+            throw;
+        }
+    }
 }

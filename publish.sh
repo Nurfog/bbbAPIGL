@@ -14,6 +14,9 @@ TEMP_PATH="/home/ubuntu/publish_tmp"
 CONFIGURATION="Release"
 OUTPUT_FOLDER="$SCRIPT_DIR/dist"
 
+# NOTA: Asegurarse de que el TargetFramework en .csproj coincida con el runtime del servidor (.NET 9.0)
+
+
 # ------------------- VALIDATIONS -------------------
 if [ ! -f "$PEM_PATH" ]; then
     echo -e "\e[31mError: No se encontró la clave PEM en: $PEM_PATH\e[0m"
@@ -57,9 +60,19 @@ echo "- Archivos en: $REMOTE_PATH"
 echo "- Servicio kestrel-bbbapigl reiniciado."
 echo "- Nginx reiniciado."
 echo "- Módulos desplegados: Central (/apiv2) y Empresa (/apiv2/emp)."
-echo "- Nuevos Endpoints Empresa:"
-echo "  - POST /apiv2/emp/salas"
-echo "  - GET  /apiv2/emp/salas/{id}/status"
-echo "  - GET  /apiv2/emp/grabaciones/{id}"
-echo "  - POST /apiv2/emp/reprogramar-sesion"
+echo "- Endpoints Empresa disponibles:"
+echo "  Salas:"
+echo "    - POST   /apiv2/emp/salas"
+echo "    - DELETE /apiv2/emp/salas/{roomId}"
+echo "    - GET    /apiv2/emp/salas/{idCursoAbierto}/status"
+echo "  Grabaciones:"
+echo "    - GET    /apiv2/emp/grabaciones/{idCursoAbierto}"
+echo "  Sesiones:"
+echo "    - POST   /apiv2/emp/reprogramar-sesion"
+echo "  Invitaciones (nuevo módulo):"
+echo "    - POST   /apiv2/emp/invitaciones/{idCursoAbierto}     (crear)"
+echo "    - PUT    /apiv2/emp/invitaciones/{id}                (modificar)"
+echo "    - POST   /apiv2/emp/invitaciones/batch               (lote)"
+echo "  Cursos:"
+echo "    - DELETE /apiv2/emp/cursos/{idCursoAbierto}"
 exit 0

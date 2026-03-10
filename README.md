@@ -22,7 +22,7 @@ El objetivo principal es simplificar la administración de entornos de aprendiza
 
 Para compilar y ejecutar este proyecto, necesitarás:
 
--   **sdk de .net 9.0**
+-   **SDK de .NET 9.0** (IMPORTANTE: El servidor utiliza .NET 9.0, no usar versiones superiores para asegurar compatibilidad).
 -   **Bases de Datos**:
     -   PostgreSQL (para `SalaRepository` - Configurada en puerto **5433** para entornos Docker)
     -   MySQL (Central): Base de datos `sige_sam_v3` (usada por `MySqlCursoRepository`).
@@ -164,185 +164,106 @@ Configura la inyección de dependencias, registrando los servicios y repositorio
 
 La API cuenta con dos módulos principales diferenciados por su prefijo de ruta:
 
--   **Módulo Central**: Prefijo `/apiv2`. Incluye integración completa con Google Calendar e invitaciones por correo.
--   **Módulo Empresa**: Prefijo `/apiv2/emp`. Versión simplificada para la base de datos `sige_sam_empresa` (sin lógica de calendario).
+### 1. Módulo Central (Normal) - `/apiv2`
 
-### Salas
+Este módulo incluye integración completa con Google Calendar e invitaciones por correo.
 
-#### `POST /salas`
-
+#### `POST /apiv2/salas`
 Crea una nueva sala de reuniones virtual y la vincula automáticamente a un curso en MySQL.
-
--   **Lógica Inteligente**: Si ya existe una sala para el `idCursoAbierto` especificado, el sistema devuelve los datos de la sala existente en lugar de crear una nueva.
--   **Cuerpo de la Petición (`CrearSalaRequest`)**:
+- **Cuerpo (`CrearSalaRequest`)**:
     ```json
-    {
-        "nombre": "string",
-        "emailCreador": "string",
-        "idCursoAbierto": 0
-    }
-    ```
--   **Respuesta Exitosa (201 Created) (`CrearSalaResponse`)**:
-    ```json
-    {
-        "roomId": "guid",
-        "urlSala": "string",
-        "claveModerador": "string",
-        "claveEspectador": "string",
-        "meetingId": "string",
-        "friendlyId": "string",
-        "recordId": "string"
-    }
+    { "nombre": "Sala X", "emailCreador": "admin@example.com", "idCursoAbierto": 123 }
     ```
 
-#### `DELETE /salas/{roomId}`
+#### `DELETE /apiv2/salas/{roomId}`
+Elimina una sala existente por su GUID.
 
-Elimina una sala existente.
+#### `GET /apiv2/salas/{idCursoAbierto}/status`
+Obtiene un diagnóstico integral del estado de la sala.
 
--   **Parámetros de URL**:
-    -   `roomId` (guid, requerido): El ID de la sala a eliminar.
--   **Respuesta Exitosa (204 No Content)**: La sala fue eliminada.
--   **Respuesta de Error (404 Not Found)**: No se encontró la sala con el ID especificado.
+#### `POST /apiv2/invitaciones/{idCursoAbierto}`
+Envía invitaciones masivas.
+- **Robustez**: Si falla Google Calendar, se envían los correos de todas formas.
+- **Cuerpo (opcional)**: `{ "emailCreador": "admin@example.com" }`
 
-#### `GET /salas/{idCursoAbierto}/status`
+#### `POST /apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
+Envía una invitación individual a un alumno.
 
-Obtiene un diagnóstico del estado de una sala en los diferentes sistemas (SAM, Greenlight, BBB).
-
--   **Parámetros de URL**:
-    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
--   **Respuesta Exitosa (200 OK) (`SalaStatusDto`)**:
+#### `PUT /apiv2/invitaciones/{idCursoAbierto}`
+Actualiza el evento de calendario y las invitaciones.
+- **Cuerpo (`ActualizarEventoCalendarioRequest`)**:
     ```json
-    {
-        "existeEnSam": true,
-        "existeEnGreenlight": true,
-        "estaActivaEnBBB": false,
-        "urlSala": "string",
-        "detalles": { ... }
-    }
+    { "fechaInicio": "2026-03-15", "fechaTermino": "2026-06-15", "dias": ["Lunes", "Miercoles"], "horaInicio": "18:00", "horaTermino": "20:00" }
     ```
 
-### Invitaciones
+#### `GET /apiv2/grabaciones/{idCursoAbierto}`
+Obtiene las URLs de las grabaciones del curso.
 
-#### `POST /invitaciones/{idCursoAbierto}`
-
-Envía invitaciones por correo electrónico a todos los participantes de un curso abierto.
-
--   **Parámetros de URL**:
-    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
--   **Cuerpo de la Petición (opcional, `EnviarInvitacionCursoRequest`)**:
+#### `POST /apiv2/reprogramar-sesion`
+Reprograma una sesión específica en el calendario.
+- **Cuerpo (`ReprogramarSesionRequest`)**:
     ```json
-    {
-        "emailCreador": "string"
-    }
+    { "idCursoAbierto": 123, "sesionNumero": 5, "fechaOriginalSesion": "2026-03-15", "fechaNuevaSesion": "2026-03-22" }
     ```
--   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
+
+#### `DELETE /apiv2/cursos/{idCursoAbierto}`
+Elimina un curso y sus invitaciones de calendario.
+
+---
+
+### 2. Módulo Empresa - `/apiv2/emp`
+
+Versión simplificada para la base de datos `sige_sam_empresa` (sin lógica de calendario).
+
+#### `POST /apiv2/emp/invitaciones/{idCursoAbierto}`
+Crea un registro de invitación en la base de empresa.
+- **Cuerpo (`CrearInvitacionEmpresaRequest`)**:
     ```json
-    {
-        "mensaje": "string",
-        "correosEnviados": "integer"
-    }
+    { "id": 12345, "fecha": "2026-03-15" }
     ```
--   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. el curso no tiene un horario definido).
 
-#### `POST /invitaciones/individual/{idAlumno}/{idCursoAbierto}`
-
-Envía una invitación individual a un alumno específico para un curso abierto.
-
--   **Parámetros de URL**:
-    -   `idAlumno` (string, requerido): El ID del alumno.
-    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
--   **Cuerpo de la Petición (opcional, `EnviarInvitacionIndividualRequest`)**:
+#### `PUT /apiv2/emp/invitaciones/{id}`
+Reprograma una invitación existente por su ID único.
+- **Cuerpo (`ReprogramarSesionRequest`)**:
     ```json
-    {
-        "emailCreador": "string"
-    }
+    { "fechaNuevaSesion": "2026-03-22" }
     ```
--   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
-    ```json
-    {
-        "mensaje": "string",
-        "correosEnviados": 1
-    }
-    ```
--   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos.
 
-#### `PUT /invitaciones/{idCursoAbierto}`
-
-Actualiza las invitaciones y el evento de calendario para un curso abierto. Útil si cambian los días u horarios del curso.
-
--   **Parámetros de URL**:
-    -   `idCursoAbierto` (integer, requerido): El ID del curso abierto.
--   **Cuerpo de la Petición (`ActualizarEventoCalendarioRequest`)**:
-    ```json
-    {
-        "idCursoAbierto": 0,
-        "fechaInicio": "datetime",
-        "fechaTermino": "datetime",
-        "dias": ["Lunes", "Martes", ...],
-        "horaInicio": "string (HH:mm)",
-        "horaTermino": "string (HH:mm)",
-        "emailCreador": "string (opcional)"
-    }
-    ```
--   **Respuesta Exitosa (200 OK) (`EnviarInvitacionCursoResponse`)**:
-    ```json
-    {
-        "mensaje": "string",
-        "correosEnviados": "integer"
-    }
-    ```
--   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos.
-
-### Cursos
-
-#### `DELETE /cursos/{idCursoAbierto}`
-
-Elimina un curso abierto y cancela las invitaciones de calendario asociadas.
-
--   **Parámetros de URL**:
-    -   `idCursoAbierto` (integer, requerido): El ID del curso a eliminar.
--   **Respuesta Exitosa (204 No Content)**: El curso fue eliminado.
--   **Respuesta de Error (404 Not Found)**: No se encontró el curso con el ID especificado.
-
-### Grabaciones
-
-#### `GET /grabaciones/{idCursoAbierto}`
-
-Obtiene las URLs de las grabaciones para un curso abierto.
-
--   **Parámetros de URL**:
-    -   `idCursoAbierto` (integer, requerido): El ID del curso.
--   **Respuesta Exitosa (200 OK) (`List<GrabacionDto>`)**:
+#### `POST /apiv2/emp/invitaciones/batch`
+Ejecuta operaciones masivas (crear, editar, eliminar) en un solo lote.
+- **Cuerpo (`List<OperacionInvitacionEmpresaRequest>`)**:
     ```json
     [
-        {
-            "recordId": "string",
-            "playbackUrl": "string",
-            "createdAt": "datetime"
-        }
+      { "accion": "crear", "id": 555, "fecha": "2026-04-01" },
+      { "accion": "editar", "id": 123, "fechaNueva": "2026-04-05" },
+      { "accion": "eliminar", "id": 999 }
     ]
     ```
--   **Respuesta de Error (404 Not Found)**: No se encontró el curso con el ID especificado.
 
-### Sesiones
+#### `POST /apiv2/emp/salas`
+Crea una sala para el módulo empresa.
+- **Cuerpo (`CrearSalaRequest`)**: Similar al Módulo Central.
 
-#### `POST /reprogramar-sesion`
+#### `GET /apiv2/emp/salas/{idCursoAbierto}/status`
+Diagnóstico del estado de sala para empresas.
 
-Reprograma una sesión específica de un curso, actualizando el evento en el calendario.
+#### `GET /apiv2/emp/grabaciones/{idCursoAbierto}`
+Recupera grabaciones del módulo empresa.
 
--   **Cuerpo de la Petición (`ReprogramarSesionRequest`)**:
-    ```json
-    {
-        "idCursoAbierto": 0,
-        "sesionNumero": 0,
-        "fechaOriginalSesion": "2025-11-18",
-        "fechaNuevaSesion": "2025-11-18"
-    }
-    ```
--   **Respuesta Exitosa (200 OK)**: La sesión fue reprogramada.
--   **Respuesta de Error (400 Bad Request)**: La operación falló debido a datos inválidos (ej. la sesión no existe).
+#### `POST /apiv2/emp/reprogramar-sesion`
+Reprogramación general de sesiones para empresas.
+
+#### `DELETE /apiv2/emp/cursos/{idCursoAbierto}`
+Elimina los datos de un curso de empresa.
+
 
 ## Historial de Cambios
+
+### 10-03-2026
+
+-   **Robustecimiento de Invitaciones (Módulo Central)**: Se ha implementado una lógica de manejo de errores más profunda para las integraciones con Google Calendar. Ahora, fallos en la actualización o creación de eventos de calendario (ej. eventos eliminados manualmente) no bloquean el envío de correos electrónicos recordatorios a los alumnos. El sistema intenta recuperar eventos perdidos automáticamente.
+-   **Corrección de Despliegue**: Se ajustó el `TargetFramework` a `net9.0` para asegurar compatibilidad con el runtime instalado en el servidor Amazon EC2, resolviendo fallos de inicio tras la publicación.
+
 
 ### 25-02-2026
 

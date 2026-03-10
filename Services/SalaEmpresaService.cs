@@ -180,6 +180,58 @@ public class SalaEmpresaService : ISalaEmpresaService
         return await _cursoRepository.ReprogramarSesionAsync(request.IdCursoAbierto, request.SesionNumero, request.FechaNuevaSesion, null);
     }
 
+    /// <summary>
+    /// Crea una nueva invitación/sesión para un curso EMP.
+    /// </summary>
+    public async Task<bool> CrearInvitacionSesionAsync(int id, DateOnly fecha)
+    {
+        // se delega directamente al repositorio; la validación de existencia previa puede hacerse en el controlador si es necesario.
+        return await _cursoRepository.CrearInvitacionSesionAsync(id, fecha);
+    }
+
+    /// <summary>
+    /// Reprograma (modifica) una invitación / sesión en EMP.
+    /// </summary>
+    public async Task<bool> ModificarInvitacionSesionAsync(int id, DateOnly fechaNueva)
+    {
+        return await _cursoRepository.ModificarInvitacionSesionAsync(id, fechaNueva);
+    }
+
+    public async Task<bool> EliminarInvitacionSesionAsync(int id)
+    {
+        return await _cursoRepository.EliminarInvitacionSesionAsync(id);
+    }
+
+    public async Task<bool> GestionarInvitacionesAsync(int idCursoAbierto, IEnumerable<OperacionInvitacionEmpresaRequest> operaciones)
+    {
+        bool anySuccess = false;
+        foreach (var op in operaciones)
+        {
+            switch (op.Accion?.ToLowerInvariant())
+            {
+                case "crear":
+                    if (op.Fecha == null)
+                        throw new ArgumentException("La operación 'crear' requiere una fecha.");
+                    if (await _cursoRepository.CrearInvitacionSesionAsync(op.Id, op.Fecha.Value))
+                        anySuccess = true;
+                    break;
+                case "editar":
+                    if (op.FechaNueva == null)
+                        throw new ArgumentException("La operación 'editar' requiere fechaNueva.");
+                    if (await _cursoRepository.ModificarInvitacionSesionAsync(op.Id, op.FechaNueva.Value))
+                        anySuccess = true;
+                    break;
+                case "eliminar":
+                    if (await _cursoRepository.EliminarInvitacionSesionAsync(op.Id))
+                        anySuccess = true;
+                    break;
+                default:
+                    throw new ArgumentException($"Acción no reconocida: {op.Accion}");
+            }
+        }
+        return anySuccess;
+    }
+
     private async Task<bool> IsMeetingRunningAsync(string? meetingId)
     {
         if (string.IsNullOrEmpty(meetingId)) return false;

@@ -19,4 +19,22 @@ public interface ICursoEmpresaRepository
     Task<CursoAbiertoSesion?> ObtenerSesionAsync(int idCursoAbierto, int sesionNumero);
     Task ActualizarHorarioCursoAsync(int idCursoAbierto, DateTime fechaInicio, DateTime fechaTermino, string? dias, DateTime horaInicio, DateTime horaTermino);
     Task<bool> GuardarDatosSalaEnCursoAsync(CursoAbiertoSala sala);
+
+    /// <summary>
+    /// Inserta un registro en la tabla `sesionescursos`.
+    /// Devuelve true si el registro fue creado correctamente.
+    /// </summary>
+    Task<bool> CrearInvitacionSesionAsync(int id, DateOnly fecha);
+
+    /// <summary>
+    /// Marca la invitación/sesión existente como suspendida y agrega una nueva con la fecha indicada.
+    /// Este comportamiento imita la reprogramación de sesiones, dejando el registro anterior con
+    /// <c>Activo = 0</c> y <c>TipoSesion = 'SUSPENDIDA'</c>.
+    /// </summary>
+    Task<bool> ModificarInvitacionSesionAsync(int id, DateOnly fechaNueva);
+
+    /// <summary>
+    /// Suspende una invitación/sesión activa sin crear uno nuevo.
+    /// </summary>
+    Task<bool> EliminarInvitacionSesionAsync(int id);
 }

@@ -47,9 +47,28 @@ public class GmailService : IEmailService
 
             var mimeMessage = new MimeMessage();
             mimeMessage.From.Add(new MailboxAddress("Notificaciones", fromEmail));
-            foreach (var email in destinatarios)
+            
+            var validDestinatarios = destinatarios
+                .Where(email => !string.IsNullOrWhiteSpace(email) && email.Contains("@"))
+                .ToList();
+
+            if (!validDestinatarios.Any())
             {
-                mimeMessage.Bcc.Add(new MailboxAddress("", email));
+                _logger.LogWarning("No hay destinatarios válidos para enviar el correo.");
+                return;
+            }
+
+            if (validDestinatarios.Count == 1)
+            {
+                mimeMessage.To.Add(new MailboxAddress("", validDestinatarios[0]));
+            }
+            else
+            {
+                // Si hay varios, seguimos usando BCC para privacidad
+                foreach (var email in validDestinatarios)
+                {
+                    mimeMessage.Bcc.Add(new MailboxAddress("", email));
+                }
             }
             mimeMessage.Subject = asunto;
 

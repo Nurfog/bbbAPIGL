@@ -114,6 +114,79 @@ public class SalasEmpController : ControllerBase
         }
     }
 
+    // NUEVOS ENDPOINTS PARA INVITACIONES EMP
+
+    /// <summary>
+    /// Registra una invitación/sesión nueva en la tabla sesionescursos.
+    /// </summary>
+    [HttpPost("invitaciones/{idCursoAbierto:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CrearInvitacion([FromRoute] int idCursoAbierto, [FromBody] CrearInvitacionEmpresaRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var exito = await _salaService.CrearInvitacionSesionAsync(request.Id, request.Fecha);
+            if (exito) return Ok(new { mensaje = "Invitación registrada." });
+            return BadRequest(new { error = "No se pudo crear la invitación." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al crear invitación EMP.");
+            return StatusCode(500, new { error = "Ocurrió un error interno al crear la invitación." });
+        }
+    }
+
+    /// <summary>
+    /// Modifica (reprograma) una invitación existente y marca la anterior como suspendida.
+    /// </summary>
+    [HttpPut("invitaciones/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ModificarInvitacion([FromRoute] int id, [FromBody] ReprogramarSesionRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var exito = await _salaService.ModificarInvitacionSesionAsync(id, request.FechaNuevaSesion);
+            if (exito) return Ok(new { mensaje = "Invitación modificada." });
+            return BadRequest(new { error = "No se encontró invitación activa para reprogramar." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al modificar invitación EMP con id {Id}.", id);
+            return StatusCode(500, new { error = "Ocurrió un error interno al modificar la invitación." });
+        }
+    }
+
+    /// <summary>
+    /// Procesa un conjunto de operaciones (crear/editar/eliminar) en formato JSON.
+    /// Cada operación identifica la sesión por su id único en la tabla sesionescursos.
+    /// </summary>
+    [HttpPost("invitaciones/batch")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GestionarInvitaciones([FromBody] List<OperacionInvitacionEmpresaRequest> operaciones)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var exito = await _salaService.GestionarInvitacionesAsync(0, operaciones);
+            if (exito) return Ok(new { mensaje = "Operaciones procesadas." });
+            return BadRequest(new { error = "Ninguna operación tuvo efecto." });
+        }
+        catch (ArgumentException argEx)
+        {
+            _logger.LogWarning(argEx, "Solicitud de batch inválida.");
+            return BadRequest(new { error = argEx.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al procesar batch de invitaciones EMP.");
+            return StatusCode(500, new { error = "Ocurrió un error interno al procesar las invitaciones." });
+        }
+    }
     [HttpGet("salas/{idCursoAbierto:int}/status")]
     [ProducesResponseType(typeof(SalaStatusDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ObtenerEstadoSala(int idCursoAbierto)

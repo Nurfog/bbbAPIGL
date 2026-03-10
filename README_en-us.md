@@ -22,7 +22,7 @@ The main objective is to simplify the administration of online learning or meeti
 
 To compile and run this project, you will need:
 
--   **SDK .NET 9.0**
+-   **SDK .NET 10.0**
 -   **Databases**:
     -   PostgreSQL (for `SalaRepository`)
     -   MySQL (for `MySqlCursoRepository`)
