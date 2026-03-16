@@ -12,10 +12,10 @@
           "Google.Apis.Auth": "1.68.0",
           "Google.Apis.Calendar.v3": "1.68.0.3430",
           "Google.Apis.Gmail.v1": "1.68.0.3427",
-          "MimeKit": "4.5.0",
+          "MimeKit": "4.15.1",
           "MySqlConnector": "2.3.7",
           "Npgsql": "8.0.3",
-          "Scalar.AspNetCore": "1.1.1",
+          "Scalar.AspNetCore": "2.0.0",
           "Swashbuckle.AspNetCore": "6.6.2"
         },
         "runtime": {
@@ -41,11 +41,11 @@
           }
         }
       },
-      "BouncyCastle.Cryptography/2.3.0": {
+      "BouncyCastle.Cryptography/2.6.2": {
         "runtime": {
           "lib/net6.0/BouncyCastle.Cryptography.dll": {
             "assemblyVersion": "2.0.0.0",
-            "fileVersion": "2.3.0.53016"
+            "fileVersion": "2.6.2.46322"
           }
         }
       },
@@ -108,17 +108,6 @@
           }
         }
       },
-      "Microsoft.AspNetCore.OpenApi/8.0.5": {
-        "dependencies": {
-          "Microsoft.OpenApi": "1.6.14"
-        },
-        "runtime": {
-          "lib/net8.0/Microsoft.AspNetCore.OpenApi.dll": {
-            "assemblyVersion": "8.0.5.0",
-            "fileVersion": "8.0.524.22404"
-          }
-        }
-      },
       "Microsoft.OpenApi/1.6.14": {
         "runtime": {
           "lib/netstandard2.0/Microsoft.OpenApi.dll": {
@@ -127,14 +116,14 @@
           }
         }
       },
-      "MimeKit/4.5.0": {
+      "MimeKit/4.15.1": {
         "dependencies": {
-          "BouncyCastle.Cryptography": "2.3.0"
+          "BouncyCastle.Cryptography": "2.6.2"
         },
         "runtime": {
           "lib/net8.0/MimeKit.dll": {
-            "assemblyVersion": "4.5.0.0",
-            "fileVersion": "4.5.0.0"
+            "assemblyVersion": "4.15.0.0",
+            "fileVersion": "4.15.1.0"
           }
         }
       },
@@ -162,14 +151,11 @@
           }
         }
       },
-      "Scalar.AspNetCore/1.1.1": {
-        "dependencies": {
-          "Microsoft.AspNetCore.OpenApi": "8.0.5"
-        },
+      "Scalar.AspNetCore/2.0.0": {
         "runtime": {
           "lib/net9.0/Scalar.AspNetCore.dll": {
-            "assemblyVersion": "1.1.1.0",
-            "fileVersion": "1.1.1.0"
+            "assemblyVersion": "2.0.0.0",
+            "fileVersion": "2.0.0.0"
           }
         }
       },
@@ -259,12 +245,12 @@
       "path": "awssdk.s3/3.7.308.3",
       "hashPath": "awssdk.s3.3.7.308.3.nupkg.sha512"
     },
-    "BouncyCastle.Cryptography/2.3.0": {
+    "BouncyCastle.Cryptography/2.6.2": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-IaVIiYxZLaBulveGDRUx/pBoW/Rc8QeXGF5u2E8xL8RWhVKCgfmtX9NUyGRbnSqnbFQU2zyP3MkXIdH+jUuQBw==",
-      "path": "bouncycastle.cryptography/2.3.0",
-      "hashPath": "bouncycastle.cryptography.2.3.0.nupkg.sha512"
+      "sha512": "sha512-7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w==",
+      "path": "bouncycastle.cryptography/2.6.2",
+      "hashPath": "bouncycastle.cryptography.2.6.2.nupkg.sha512"
     },
     "Google.Apis/1.68.0": {
       "type": "package",
@@ -301,13 +287,6 @@
       "path": "google.apis.gmail.v1/1.68.0.3427",
       "hashPath": "google.apis.gmail.v1.1.68.0.3427.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.OpenApi/8.0.5": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-5DKqBOVuGkX6EQsA34MmzVo7UX/6HASveBObPe+E8GKDm391PvxDvgufhhywnbGvEl7DXUqfwdNr7l0efwlssQ==",
-      "path": "microsoft.aspnetcore.openapi/8.0.5",
-      "hashPath": "microsoft.aspnetcore.openapi.8.0.5.nupkg.sha512"
-    },
     "Microsoft.OpenApi/1.6.14": {
       "type": "package",
       "serviceable": true,
@@ -315,12 +294,12 @@
       "path": "microsoft.openapi/1.6.14",
       "hashPath": "microsoft.openapi.1.6.14.nupkg.sha512"
     },
-    "MimeKit/4.5.0": {
+    "MimeKit/4.15.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-OYn8b8b66J4mgtDzoImepiUtdkJOAVGoTj/ghzJ+az4wVixA5L5Z8GmgFhRvQ1btAIwZh/d9zvZLCALndQdz5w==",
-      "path": "mimekit/4.5.0",
-      "hashPath": "mimekit.4.5.0.nupkg.sha512"
+      "sha512": "sha512-cxCcQhD0zhboFoG136jJuJtQjNRDJ+BxBm3f2vWn+53bff/CRo+K1mAkWjsW4Wuyy5O22F40MdMG2nRzQu1cJw==",
+      "path": "mimekit/4.15.1",
+      "hashPath": "mimekit.4.15.1.nupkg.sha512"
     },
     "MySqlConnector/2.3.7": {
       "type": "package",
@@ -343,12 +322,12 @@
       "path": "npgsql/8.0.3",
       "hashPath": "npgsql.8.0.3.nupkg.sha512"
     },
-    "Scalar.AspNetCore/1.1.1": {
+    "Scalar.AspNetCore/2.0.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-zpASor1XNXz3Mx/dKxjXgQmyOiiDhY1uSqKQu8SEtZfFZJ4+d+s89WNkuorzkttVvJOSuaV8Fq+rqRYZ4OUR6A==",
-      "path": "scalar.aspnetcore/1.1.1",
-      "hashPath": "scalar.aspnetcore.1.1.1.nupkg.sha512"
+      "sha512": "sha512-7o7frlvcpz2qKQGJHP1aS/9vOvEguhEB4mJU3O8VqBuDOu5VGncgfxkhnsOIA0jOKTTe2Apy8zu24L8ShM8j9A==",
+      "path": "scalar.aspnetcore/2.0.0",
+      "hashPath": "scalar.aspnetcore.2.0.0.nupkg.sha512"
     },
     "Swashbuckle.AspNetCore/6.6.2": {
       "type": "package",

@@ -17,11 +17,11 @@ public class CrearSalaRequest
     public string Nombre { get; set; } = string.Empty;
 
     /// <summary>
-    /// Obtiene o establece el correo electrónico del creador de la sala. Es un campo requerido y debe ser una dirección de correo válida.
+    /// Obtiene o establece el correo electrónico del creador de la sala. 
+    /// Para el módulo de empresas, si no se proporciona, se usa el configurado en DefaultRoomCreatorEmailEmpresa.
     /// </summary>
-    [Required]
     [EmailAddress]
-    public string EmailCreador { get; set; } = string.Empty;
+    public string? EmailCreador { get; set; }
 
     /// <summary>
     /// Obtiene o establece el ID del curso abierto al que se asociará la sala.

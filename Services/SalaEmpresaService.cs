@@ -59,6 +59,9 @@ public class SalaEmpresaService : ISalaEmpresaService
         var recordId = $"{meetingId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
         var publicUrl = _configuration["SalaSettings:PublicUrl"];
 
+        // Para el módulo de empresas, se usa el usuario configurado por defecto
+        var emailCreador = _configuration["SalaSettings:DefaultRoomCreatorEmailEmpresa"] ?? "sedeempresa@norteamericano.cl";
+
         var nuevaSala = new Sala
         {
             Nombre = request.Nombre,
@@ -68,7 +71,7 @@ public class SalaEmpresaService : ISalaEmpresaService
             ClaveEspectador = claveEspectador
         };
 
-        Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, request.EmailCreador);
+        Guid? newRoomId = await _salaRepository.GuardarSalaAsync(nuevaSala, emailCreador);
 
         if (newRoomId == null)
         {

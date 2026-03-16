@@ -43,9 +43,11 @@ scp -o StrictHostKeyChecking=no -i "$PEM_PATH" -r "$OUTPUT_FOLDER"/* "${REMOTE_U
 # ------------------- MOVE & CHOWN AS ROOT (SUDO) -------------------
 echo -e "\n\e[36m=== Despliegue final, permisos y reinicio de servicios ===\e[0m"
 
+# Hacer backup del appsettings.json existente antes de sobrescribir
+ssh -o StrictHostKeyChecking=no -i "$PEM_PATH" "${REMOTE_USER}@${REMOTE_HOST}" \
+  "if [ -f ${REMOTE_PATH}/appsettings.json ]; then sudo cp ${REMOTE_PATH}/appsettings.json ${TEMP_PATH}/appsettings.json.backup; fi"
+
 REMOTE_COMMANDS="sudo mkdir -p ${REMOTE_PATH} && \
-sudo rm -rf ${REMOTE_PATH}* && \
-sudo mkdir -p ${REMOTE_PATH} && \
 sudo cp -r ${TEMP_PATH}/* ${REMOTE_PATH}/ && \
 sudo chown -R www-data:www-data ${REMOTE_PATH} && \
 sudo rm -rf ${TEMP_PATH} && \
@@ -54,6 +56,14 @@ sudo systemctl restart kestrel-bbbapigl.service && \
 sudo systemctl restart nginx"
 
 ssh -o StrictHostKeyChecking=no -i "$PEM_PATH" "${REMOTE_USER}@${REMOTE_HOST}" "$REMOTE_COMMANDS"
+
+# Restaurar el appsettings.json desde el backup si existe
+ssh -o StrictHostKeyChecking=no -i "$PEM_PATH" "${REMOTE_USER}@${REMOTE_HOST}" \
+  "if [ -f ${REMOTE_PATH}/appsettings.json.backup ]; then sudo mv ${REMOTE_PATH}/appsettings.json.backup ${REMOTE_PATH}/appsettings.json && sudo systemctl restart kestrel-bbbapigl.service; fi"
+
+# Eliminar appsettings.Production.json para que no sobrescriba la configuración
+ssh -o StrictHostKeyChecking=no -i "$PEM_PATH" "${REMOTE_USER}@${REMOTE_HOST}" \
+  "sudo rm -f ${REMOTE_PATH}/appsettings.Production.json"
 
 echo -e "\n\e[32m¡DESPLIEGUE COMPLETO!\e[0m"
 echo "- Archivos en: $REMOTE_PATH"

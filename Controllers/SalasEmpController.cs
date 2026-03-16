@@ -30,12 +30,17 @@ public class SalasEmpController : ControllerBase
         try
         {
             var response = await _salaService.CrearNuevaSalaAsync(request);
-            return CreatedAtAction(null, response);
+            return CreatedAtAction(nameof(CrearSala), new { roomId = response.RoomId }, response);
         }
         catch (ApplicationException appEx)
         {
             _logger.LogWarning(appEx, "Error al crear la sala EMP: {Message}", appEx.Message);
             return BadRequest(new { error = appEx.Message });
+        }
+        catch (InvalidOperationException invEx)
+        {
+            _logger.LogWarning(invEx, "Error de validación al crear la sala EMP: {Message}", invEx.Message);
+            return BadRequest(new { error = invEx.Message });
         }
         catch (Exception ex)
         {

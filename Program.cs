@@ -20,6 +20,7 @@ builder.Services.AddScoped<ICursoEmpresaRepository, MySqlCursoEmpresaRepository>
 builder.Services.AddScoped<ICalendarService, GoogleCalendarService>();
 builder.Services.AddScoped<IAcademicCalendarService, AcademicCalendarService>();
 builder.Services.AddTransient<IEmailService, GmailService>();
+
 // 2. Construir la aplicación
 var app = builder.Build();
 
@@ -32,8 +33,13 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.MapScalarApiReference();
 }
+
+// Scalar API Reference - Disponible en todos los entornos
+app.MapScalarApiReference("/api-docs", options =>
+{
+    options.Title = "bbbAPIGL API";
+});
 
 // En producción, Nginx maneja HTTPS. HttpsRedirection puede causar problemas si no está bien configurado.
 // app.UseHttpsRedirection();
