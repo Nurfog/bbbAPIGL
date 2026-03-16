@@ -96,11 +96,21 @@ To run the project, it is necessary to configure the credentials and settings of
     *   `S3Settings:BucketName`: Name of the S3 bucket for recordings.
     *   `S3Settings:Region`: AWS region where the S3 bucket is located.
     *   `SalaSettings:PublicUrl`: Base public URL to access BBB rooms and recordings.
+    *   `SalaSettings:DefaultRoomCreatorEmail`: Default email for room creation in the central module (e.g., "norteamericanoonline@norteamericano.cl").
+    *   `SalaSettings:DefaultRoomCreatorEmailEmpresa`: Default email for room creation in the enterprise module (e.g., "sedeempresa@norteamericano.cl"). **This user must exist in the PostgreSQL database (Greenlight)**.
 
 2.  **Google Credentials**: Rename `google-credentials.example.json` to `google-credentials.json` and add the credentials of your Google Cloud service account for integration with Google Calendar and Gmail. Make sure the service account has the necessary permissions to manage calendar events and send emails.
     *   `GoogleCalendarSettings:CredentialsFile`: Path to the `google-credentials.json` file.
     *   `GoogleCalendarSettings:UserToImpersonate`: Email of the user to be impersonated to create calendar events and send emails.
     *   `GoogleCalendarSettings:DefaultTimeZone`: Default time zone for calendar events (e.g., "America/Santiago").
+
+3.  **BigBlueButton API Configuration**:
+    *   `BigBlueButtonApi:BaseUrl`: Base URL of the BBB API (e.g., `https://bbb.example.com/bigbluebutton/api`).
+    *   `BigBlueButtonApi:Secret`: Shared secret (salt) of the BBB API.
+
+4.  **Important Configuration Files**:
+    *   `appsettings.json`: **NOT uploaded to the repository** (it's in `.gitignore`). Contains production credentials. Must be created/edited directly on the server.
+    *   `appsettings.Production.json`: Sample/placeholder file. **Automatically deleted** after each deployment to avoid overwriting `appsettings.json`.
 
 ## Code Documentation
 
@@ -110,7 +120,9 @@ The project follows a clean and modular architecture, organized into the followi
 
 Located in the `Controllers` folder, they are responsible for handling incoming HTTP requests, invoking business logic through services, and returning HTTP responses.
 
--   **`SalasController.cs`**: Exposes the endpoints for creating, deleting, updating rooms, sending invitations (course and individual), and obtaining recording URLs.
+-   **`SalasController.cs`**: Exposes endpoints for creating, deleting, updating rooms, sending invitations (course and individual), and obtaining recording URLs for the central module.
+-   **`SalasEmpController.cs`**: Exposes endpoints for managing rooms and invitations in the enterprise module (without Google Calendar integration). Includes endpoints for batch operations.
+-   **`TestController.cs`**: Controller for testing and system diagnostics.
 
 ### 2. DTOs (Data Transfer Objects)
 
@@ -135,7 +147,9 @@ Located in the `Models` folder, they represent the business domain entities.
 Located in the `Services` folder, they contain the main business logic and orchestrate operations.
 
 -   **`ISalaService` / `SalaService.cs`**: Implements the central logic for room management, including the generation of IDs, keys, interaction with repositories, and email/calendar services.
+-   **`ISalaEmpresaService` / `SalaEmpresaService.cs`**: Implements the logic for managing rooms in the enterprise module, optimized for scenarios without Google Calendar integration.
 -   **`IEmailService` / `GoogleCalendarService.cs`**: Abstraction and implementation for sending emails and managing events in Google Calendar (creation, update, and deletion). It uses the Google Calendar and Gmail API.
+-   **`IAcademicCalendarService` / `AcademicCalendarService.cs`**: Service for managing and calculating academic calendars.
 -   **`IS3Service` / `S3Service.cs`**: Abstraction and implementation to interact with S3-compatible storage services, specifically to generate pre-signed URLs for access to recordings.
 
 ### 5. Repositories
@@ -147,249 +161,88 @@ Located in the `Repositories` folder, they are responsible for abstracting the d
 
 ### 6. Program.cs
 
-Configures dependency injection, registering services and repositories with their respective interfaces. It also configures the HTTP request pipeline (Swagger, HTTPS redirection, etc.).
+Configures dependency injection, registering services and repositories with their respective interfaces. It also configures the HTTP request pipeline (Scalar API Reference, HTTPS redirection, etc.).
 
-## Usage Documentation
+## API Endpoints
 
-API Documentation for BigBlueButton Integration
-Version: 2.1 www.example.com/apiv2/
-Introduction
-This API provides an interface to interact with the BigBlueButton (BBB) web conferencing platform through its Greenlight management system. It allows the creation and deletion of rooms, as well as sending notifications to specific courses.
-All communication with the API is done via HTTPS. The bodies of requests and responses must be in JSON format.
+The API has two main modules differentiated by their route prefix. For detailed documentation with complete examples, see the [ENDPOINTS.md](ENDPOINTS.md) file.
 
-### Endpoints
-#### 1.1 Create a New Room
-Creates a new room in the Greenlight database and associates it with a creator user.
--   **Method**: `POST`
--   **URL**: `/salas`
--   **Full URL**: `www.example.com/apiv2/salas`
--   **Request Body**
-    ```json
-    {
-        "nombre": "string",
-        "emailCreador": "string"
-    }
-    ```
--   **Successful Response (201 Created)**
-    Returns a JSON object with all the details of the newly created room.
-    | Field           | Type   | Description                                                              |
-    |-----------------|--------|--------------------------------------------------------------------------|
-    | `roomId`          | guid   | The unique ID of the room in the Greenlight database (UUID).         |
-    | `urlSala`         | string | The direct URL to join the room.                                    |
-    | `claveModerador`  | string | The password to join the room as a moderator.                      |
-    | `claveEspectador` | string | The password to join the room as a spectator.                     |
-    | `meetingId`       | string | The internal meeting ID used by BigBlueButton.                 |
-    | `friendlyId`      | string | The "friendly" ID that is part of the room URL.                   |
-    | `recordId`        | string | A unique identifier generated for a possible recording of this session. |
+### Interactive Documentation (Scalar)
 
--   **JSON Example (Response)**
-    ```json
-    {
-        "roomId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-        "urlSala": "www.example.com/rooms/abc-123-def-456/join",
-        "claveModerador": "g3h4j5k6",
-        "claveEspectador": "a1b2c3d4",
-        "meetingId": "a_long_string_of_40_characters",
-        "friendlyId": "abc-123-def-456",
-        "recordId": "a_long_string_of_40_characters-1756543210"
-    }
-    ```
+The API includes interactive documentation using Scalar, available at:
 
-#### 1.2 Delete a Room
-Permanently deletes a room and all its associated configurations from the Greenlight database.
--   **Method**: `DELETE`
--   **URL**: `/salas/{roomId}`
--   **Full URL**: `www.example.com/apiv2/salas/{roomId}`
--   **URL Parameters (Path Parameters)**
-    | Parameter | Type | Required | Description                                            |
-    |-----------|------|----------|--------------------------------------------------------|
-    | `roomId`    | guid | Yes       | The unique identifier (UUID) of the room to be deleted. |
+- **Development:** `https://localhost:7000/api-docs`
+- **Production:** `https://bbb.norteamericano.cl/api-docs`
 
--   **Successful Response (204 No Content)**
-    If the deletion is successful, the API will respond with a 204 status code and no response body.
--   **Error Responses**
-    -   `404 Not Found`: If no room is found with the provided `roomId`.
-    -   `500 Internal Server Error`: If a database error occurs during deletion.
+Scalar provides:
+- Complete list of all endpoints (Central and Enterprise)
+- Interactive testing from the browser
+- Detailed data models
+- Request/response examples
+- Modern and responsive UI
 
-#### 2. Send Invitations to a Course
-Sends an invitation email to all students of a specific course registered in the client's MySQL database.
--   **Method**: `POST`
--   **URL**: `/invitaciones/{idCursoAbierto}`
--   **Full URL**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
--   **URL Parameters (Path Parameters)**
-    | Field            | Type    | Required | Description                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idCursoAbierto` | integer | Yes       | The numeric ID of the course (from the `cursosabiertosbbb` table) to which the invitations will be sent. |
+---
 
--   **JSON Example (Request)**
-    ```json
-    // No request body is required for this endpoint.
-    ```
--   **Successful Response (200 OK)**
-    Returns a JSON object confirming the result of the operation.
-    | Field            | Type    | Description                               |
-    |------------------|---------|-------------------------------------------|
-    | `message`          | string  | A confirmation message.               |
-    | `emailsSent` | integer | The number of emails sent to the course students. |
+### 1. Central Module (Normal) - `/apiv2`
 
--   **JSON Example (Response)**
-    ```json
-    {
-        "message": "Invitations sent successfully.",
-        "emailsSent": 42
-    }
-    ```
--   **Error Responses**
-    -   `404 Not Found`: If the course or the associated room is not found in the MySQL database.
+This module includes full integration with Google Calendar and email invitations.
 
-#### 2.1 Send Individual Invitation to a Course
-Sends an invitation email to a specific student of a course registered in the client's MySQL database.
--   **Method**: `POST`
--   **URL**: `/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
--   **Full URL**: `www.example.com/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
--   **URL Parameters (Path Parameters)**
-    | Field            | Type    | Required | Description                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idAlumno` | string | Yes       | The ID of the student to whom the invitation will be sent. |
-    | `idCursoAbierto` | integer | Yes       | The numeric ID of the course (from the `cursosabiertosbbb` table) to which the invitation will be sent. |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/apiv2/salas` | Creates a new virtual meeting room |
+| `DELETE` | `/apiv2/salas/{roomId}` | Deletes an existing room by GUID |
+| `GET` | `/apiv2/salas/{idCursoAbierto}/status` | Gets comprehensive room status diagnosis |
+| `POST` | `/apiv2/invitaciones/{idCursoAbierto}` | Sends bulk invitations to a course |
+| `POST` | `/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}` | Sends individual invitation to a student |
+| `PUT` | `/apiv2/invitaciones/{idCursoAbierto}` | Updates calendar event and resends invitations |
+| `GET` | `/apiv2/grabaciones/{idCursoAbierto}` | Gets recording URLs for the course |
+| `POST` | `/apiv2/reprogramar-sesion` | Reschedules a specific session |
+| `DELETE` | `/apiv2/cursos/{idCursoAbierto}` | Deletes a course and its calendar invitations |
 
--   **JSON Example (Request)**
-    ```json
-    // No request body is required for this endpoint.
-    ```
--   **Successful Response (200 OK)**
-    Returns a JSON object confirming the result of the operation.
-    | Field            | Type    | Description                               |
-    |------------------|---------|-------------------------------------------|
-    | `message`          | string  | A confirmation message.               |
-    | `emailsSent` | integer | The number of emails sent. |
+> **Note:** The invitations module is robust: if Google Calendar fails, emails are still sent.
 
--   **JSON Example (Response)**
-    ```json
-    {
-        "message": "Invitation sent successfully.",
-        "emailsSent": 1
-    }
-    ```
--   **Error Responses**
-    -   `400 Bad Request`: If the request is invalid.
-    -   `500 Internal Server Error`: Internal server error.
+---
 
-#### 2.2 Update Course Invitations
-Updates the invitations for an open course.
--   **Method**: `PUT`
--   **URL**: `/invitaciones/{idCursoAbierto}`
--   **Full URL**: `www.example.com/apiv2/invitaciones/{idCursoAbierto}`
--   **URL Parameters (Path Parameters)**
-    | Field            | Type    | Required | Description                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idCursoAbierto` | integer | Yes       | The numeric ID of the course (from the `cursosabiertosbbb` table) for which the invitations will be updated. |
+### 2. Enterprise Module - `/apiv2/emp`
 
--   **Request Body**
-    ```json
-    {
-        "idCursoAbierto": 0,
-        "fechaInicio": "2025-11-05T15:07:26.158Z",
-        "fechaTermino": "2025-11-05T15:07:26.158Z",
-        "dias": [
-            "Monday"
-        ],
-        "horaInicio": "string",
-        "horaTermino": "string"
-    }
-    ```
--   **Successful Response (200 OK)**
-    Returns a JSON object confirming the result of the operation.
-    | Field            | Type    | Description                               |
-    |------------------|---------|-------------------------------------------|
-    | `message`          | string  | A confirmation message.               |
-    | `emailsSent` | integer | The number of emails that were updated. |
+Simplified version for the `sige_sam_empresa` database (no Google Calendar integration).
 
--   **JSON Example (Response)**
-    ```json
-    {
-        "message": "Invitations updated successfully.",
-        "emailsSent": 10
-    }
-    ```
--   **Error Responses**
-    -   `400 Bad Request`: If the request is invalid.
-    -   `500 Internal Server Error`: Internal server error.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/apiv2/emp/salas` | Creates a room for the enterprise module |
+| `DELETE` | `/apiv2/emp/salas/{roomId}` | Deletes a room from the enterprise module |
+| `GET` | `/apiv2/emp/salas/{idCursoAbierto}/status` | Gets room status diagnosis for enterprises |
+| `GET` | `/apiv2/emp/grabaciones/{idCursoAbierto}` | Retrieves recordings from the enterprise module |
+| `POST` | `/apiv2/emp/invitaciones/{idCursoAbierto}` | Creates invitation/session record |
+| `PUT` | `/apiv2/emp/invitaciones/{id}` | Reschedules existing invitation |
+| `POST` | `/apiv2/emp/invitaciones/batch` | Executes bulk operations (create/edit/delete) |
+| `POST` | `/apiv2/emp/reprogramar-sesion` | General session rescheduling for enterprises |
+| `DELETE` | `/apiv2/emp/cursos/{idCursoAbierto}` | Deletes enterprise course data |
 
-#### 3. Get Course Recordings 🎥
-Gets a list of all available recordings for a specific course, including their playback URL and creation date.
--   **Method**: `GET`
--   **URL**: `/grabaciones/{idCursoAbierto}`
--   **Full URL**: `www.example.com/apiv2/grabaciones/{idCursoAbierto}`
--   **URL Parameters (Path Parameters)**
-    | Parameter        | Type    | Required | Description                                                              |
-    |------------------|---------|----------|--------------------------------------------------------------------------|
-    | `idCursoAbierto` | integer | Yes       | The numeric ID of the course from which the recordings are to be obtained.      |
+> **Note:** If a room already exists for the `idCursoAbierto`, the API returns existing data without creating duplicates.
 
--   **Successful Response (200 OK)**
-    Returns an array of JSON objects, where each object represents a recording. The array is sorted from newest to oldest. If there are no recordings, it returns an empty array `[]`.
-    | Field         | Type   | Description                                                              |
-    |---------------|--------|--------------------------------------------------------------------------|
-    | `recordId`      | string | The unique ID of the recording, used to build the URL.            |
-    | `playbackUrl`   | string | The full URL to watch the recording in a browser.                   |
-    | `createdAt`     | string | The date the recording was created, in `YYYY-MM-DD` format.           |
+---
 
--   **JSON Example (Response)**
-    ```json
-    [
-        {
-            "recordId": "0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-            "playbackUrl": "www.example.com/playback/presentation/2.3/0cf9da8040fa52677185fdd34e4b02faa7326af6-1756918398921",
-            "createdAt": "2025-09-12"
-        },
-        {
-            "recordId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-            "playbackUrl": "www.example.com/playback/presentation/2.3/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0-1756910000000",
-            "createdAt": "2025-09-10"
-        }
-    ]
-    ```
+### View Complete Documentation
 
-#### 4. Delete a Course
-Deletes an open course and all its associated invitations.
--   **Method**: `DELETE`
--   **URL**: `/cursos/{idCursoAbierto}`
--   **Full URL**: `www.example.com/apiv2/cursos/{idCursoAbierto}`
--   **URL Parameters (Path Parameters)**
-    | Parameter | Type | Required | Description                                            |
-    |-----------|------|----------|--------------------------------------------------------|
-    | `idCursoAbierto`    | integer | Yes       | The unique identifier of the course to be deleted. |
-
--   **Successful Response (204 No Content)**
-    If the deletion is successful, the API will respond with a 204 status code and no response body.
--   **Error Responses**
-    -   `404 Not Found`: If the course with the provided `idCursoAbierto` is not found.
-    -   `500 Internal Server Error`: If a database error occurs during deletion.
-
-#### 5. Reschedule a Session
-Reschedules a specific session of an open course, updating its date.
--   **Method**: `POST`
--   **URL**: `/reprogramar-sesion`
--   **Full URL**: `www.example.com/apiv2/reprogramar-sesion`
--   **Request Body**
-    ```json
-    {
-        "idCursoAbierto": "string",
-        "sesionNumero": 0,
-        "fechaNuevaSesion": "2025-11-05"
-    }
-    ```
--   **Successful Response (200 OK)**
-    If the session is successfully rescheduled, the API will respond with a 200 status code and no response body.
--   **Error Responses**
-    -   `400 Bad Request`: If the request data is invalid or if the operation is not possible (e.g., session not found).
-    -   `500 Internal Server Error`: If an unexpected error occurs on the server.
+For detailed examples of requests, responses, and error codes, see:
+- 📄 **[ENDPOINTS.md](ENDPOINTS.md)** - Complete documentation of all endpoints
 
 ## Change History
 
-### 2025-11-18
+### 2026-03-16
 
--   **Fix in Session Rescheduling**: Fixed a bug in the session rescheduling logic (`ReprogramarSesionAsync`) that prevented the creation of Google Calendar events for low or medium sequence sessions. Now, the event is created correctly on the requested date, ensuring that all rescheduled sessions are reflected in the calendar.
+-   **New Invitation Endpoints (Enterprise Module)**: Additional endpoints for session management in the enterprise module:
+    -   `POST /apiv2/emp/invitaciones/{idCursoAbierto}`: Registers a new session in the `sesionescursos` table.
+    -   `PUT /apiv2/emp/invitaciones/{id}`: Modifies (reschedules) an existing invitation, marking the previous one as suspended.
+    -   `POST /apiv2/emp/invitaciones/batch`: Executes bulk operations (create, edit, delete) in a single request.
+-   **Interactive Documentation with Scalar**: Replaced Swagger with Scalar as the interactive documentation system, available at `/api-docs`. Provides a modern experience with complete endpoint list, detailed data models, and interactive testing from the browser.
+-   **Improved Error Handling**: Refined exception handling in both controllers (`SalasController` and `SalasEmpController`) to distinguish between application errors (`ApplicationException`), validation errors (`InvalidOperationException`), and unexpected errors.
+
+### 2026-03-10
+
+-   **Invitation Robustness (Central Module)**: Implemented deeper error handling logic for Google Calendar integrations. Calendar event creation/update failures (e.g., manually deleted events) no longer block reminder email sending to students. The system automatically attempts to recover lost events.
+-   **Deployment Fix**: Adjusted `TargetFramework` to `net9.0` to ensure compatibility with the runtime installed on the Amazon EC2 server, resolving startup failures after publishing.
 
 ### 2025-11-06
 

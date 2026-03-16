@@ -100,7 +100,8 @@ Para poder ejecutar el proyecto, es necesario configurar las credenciales y ajus
     *   `S3Settings:BucketName`: Nombre del bucket S3 para grabaciones.
     *   `S3Settings:Region`: Región de AWS donde se encuentra el bucket S3.
     *   `SalaSettings:PublicUrl`: URL pública base para acceder a las salas y grabaciones de BBB.
-    *   `SalaSettings:DefaultRoomCreatorEmail`: Correo electrónico por defecto para la creación de salas (ej. "norteamericanoonline@norteamericano.cl").
+    *   `SalaSettings:DefaultRoomCreatorEmail`: Correo electrónico por defecto para la creación de salas del módulo central (ej. "norteamericanoonline@norteamericano.cl").
+    *   `SalaSettings:DefaultRoomCreatorEmailEmpresa`: Correo electrónico por defecto para la creación de salas del módulo empresa (ej. "sedeempresa@norteamericano.cl"). **Este usuario debe existir en la base de datos PostgreSQL (Greenlight)**.
 
 2.  **Credenciales de Google**: Renombre `google-credentials.example.json` a `google-credentials.json` y añada las credenciales de su cuenta de servicio de Google Cloud para la integración con Google Calendar y Gmail. Asegúrese de que la cuenta de servicio tenga los permisos necesarios para gestionar eventos de calendario y enviar correos electrónicos.
     *   `GoogleCalendarSettings:CredentialsFile`: Ruta al archivo `google-credentials.json`.
@@ -111,6 +112,10 @@ Para poder ejecutar el proyecto, es necesario configurar las credenciales y ajus
     *   `BigBlueButtonApi:BaseUrl`: URL base de la API de BBB (ej. `https://bbb.example.com/bigbluebutton/api`).
     *   `BigBlueButtonApi:Secret`: Secreto compartido (salt) de la API de BBB.
 
+4.  **Archivos de Configuración Importantes**:
+    *   `appsettings.json`: **NO se sube al repositorio** (está en `.gitignore`). Contiene las credenciales reales de producción. Se debe crear/editar directamente en el servidor.
+    *   `appsettings.Production.json`: Archivo con valores de ejemplo/marcador. **Se elimina automáticamente** después de cada despliegue para no sobrescribir `appsettings.json`.
+
 ## Documentación del Código
 
 El proyecto sigue una arquitectura limpia y modular, organizada en las siguientes capas:
@@ -119,7 +124,9 @@ El proyecto sigue una arquitectura limpia y modular, organizada en las siguiente
 
 Ubicados en la carpeta `Controllers`, son responsables de manejar las peticiones HTTP entrantes, invocar la lógica de negocio a través de los servicios y devolver las respuestas HTTP.
 
--   **`SalasController.cs`**: Expone los endpoints para la creación, eliminación, actualización de salas, envío de invitaciones (curso e individual) y obtención de URLs de grabaciones.
+-   **`SalasController.cs`**: Expone los endpoints para la creación, eliminación, actualización de salas, envío de invitaciones (curso e individual) y obtención de URLs de grabaciones para el módulo central.
+-   **`SalasEmpController.cs`**: Expone los endpoints para la gestión de salas e invitaciones del módulo empresa (sin integración con Google Calendar). Incluye endpoints para operaciones por lote.
+-   **`TestController.cs`**: Controlador para pruebas y diagnóstico del sistema.
 
 ### 2. DTOs (Data Transfer Objects)
 
@@ -145,7 +152,9 @@ Ubicados en la carpeta `Models`, representan las entidades de dominio del negoci
 Ubicados en la carpeta `Services`, contienen la lógica de negocio principal y orquestan las operaciones.
 
 -   **`ISalaService` / `SalaService.cs`**: Implementa la lógica central para la gestión de salas, incluyendo la generación de IDs, claves, interacción con repositorios y servicios de correo/calendario.
+-   **`ISalaEmpresaService` / `SalaEmpresaService.cs`**: Implementa la lógica para la gestión de salas del módulo empresa, optimizada para escenarios sin integración con Google Calendar.
 -   **`IEmailService` / `GoogleCalendarService.cs`**: Abstracción e implementación para el envío de correos electrónicos y la gestión de eventos en Google Calendar (creación, actualización y eliminación). Utiliza la API de Google Calendar y Gmail.
+-   **`IAcademicCalendarService` / `AcademicCalendarService.cs`**: Servicio para la gestión y cálculo de calendarios académicos.
 -   **`IS3Service` / `S3Service.cs`**: Abstracción e implementación para interactuar con servicios de almacenamiento compatibles con S3, específicamente para generar URLs pre-firmadas para el acceso a grabaciones.
 
 ### 5. Repositories
@@ -158,106 +167,84 @@ Ubicados en la carpeta `Repositories`, son responsables de la abstracción de la
 
 ### 6. Program.cs
 
-Configura la inyección de dependencias, registrando los servicios y repositorios con sus respectivas interfaces. También configura el pipeline de peticiones HTTP (Swagger, HTTPS redirection, etc.).
+Configura la inyección de dependencias, registrando los servicios y repositorios con sus respectivas interfaces. También configura el pipeline de peticiones HTTP (Scalar API Reference, HTTPS redirection, etc.).
 
 ## Endpoints de la API
 
-La API cuenta con dos módulos principales diferenciados por su prefijo de ruta:
+La API cuenta con dos módulos principales diferenciados por su prefijo de ruta. Para documentación detallada con ejemplos completos, consulta el archivo [ENDPOINTS.md](ENDPOINTS.md).
+
+### Documentación Interactiva (Scalar)
+
+La API incluye documentación interactiva usando Scalar, disponible en:
+
+- **Desarrollo:** `https://localhost:7000/api-docs`
+- **Producción:** `https://bbb.norteamericano.cl/api-docs`
+
+Scalar proporciona:
+- Lista completa de todos los endpoints (Central y Empresa)
+- Pruebas interactivas desde el navegador
+- Modelos de datos detallados
+- Ejemplos de requests/responses
+- UI moderna y responsiva
+
+---
 
 ### 1. Módulo Central (Normal) - `/apiv2`
 
 Este módulo incluye integración completa con Google Calendar e invitaciones por correo.
 
-#### `POST /apiv2/salas`
-Crea una nueva sala de reuniones virtual y la vincula automáticamente a un curso en MySQL.
-- **Cuerpo (`CrearSalaRequest`)**:
-    ```json
-    { "nombre": "Sala X", "emailCreador": "admin@example.com", "idCursoAbierto": 123 }
-    ```
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/apiv2/salas` | Crea una nueva sala de reuniones virtual |
+| `DELETE` | `/apiv2/salas/{roomId}` | Elimina una sala existente por su GUID |
+| `GET` | `/apiv2/salas/{idCursoAbierto}/status` | Obtiene diagnóstico del estado de la sala |
+| `POST` | `/apiv2/invitaciones/{idCursoAbierto}` | Envía invitaciones masivas a un curso |
+| `POST` | `/apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}` | Envía invitación individual a un alumno |
+| `PUT` | `/apiv2/invitaciones/{idCursoAbierto}` | Actualiza evento de calendario y reenvía invitaciones |
+| `GET` | `/apiv2/grabaciones/{idCursoAbierto}` | Obtiene URLs de grabaciones del curso |
+| `POST` | `/apiv2/reprogramar-sesion` | Reprograma una sesión específica |
+| `DELETE` | `/apiv2/cursos/{idCursoAbierto}` | Elimina un curso y sus invitaciones |
 
-#### `DELETE /apiv2/salas/{roomId}`
-Elimina una sala existente por su GUID.
-
-#### `GET /apiv2/salas/{idCursoAbierto}/status`
-Obtiene un diagnóstico integral del estado de la sala.
-
-#### `POST /apiv2/invitaciones/{idCursoAbierto}`
-Envía invitaciones masivas.
-- **Robustez**: Si falla Google Calendar, se envían los correos de todas formas.
-- **Cuerpo (opcional)**: `{ "emailCreador": "admin@example.com" }`
-
-#### `POST /apiv2/invitaciones/individual/{idAlumno}/{idCursoAbierto}`
-Envía una invitación individual a un alumno.
-
-#### `PUT /apiv2/invitaciones/{idCursoAbierto}`
-Actualiza el evento de calendario y las invitaciones.
-- **Cuerpo (`ActualizarEventoCalendarioRequest`)**:
-    ```json
-    { "fechaInicio": "2026-03-15", "fechaTermino": "2026-06-15", "dias": ["Lunes", "Miercoles"], "horaInicio": "18:00", "horaTermino": "20:00" }
-    ```
-
-#### `GET /apiv2/grabaciones/{idCursoAbierto}`
-Obtiene las URLs de las grabaciones del curso.
-
-#### `POST /apiv2/reprogramar-sesion`
-Reprograma una sesión específica en el calendario.
-- **Cuerpo (`ReprogramarSesionRequest`)**:
-    ```json
-    { "idCursoAbierto": 123, "sesionNumero": 5, "fechaOriginalSesion": "2026-03-15", "fechaNuevaSesion": "2026-03-22" }
-    ```
-
-#### `DELETE /apiv2/cursos/{idCursoAbierto}`
-Elimina un curso y sus invitaciones de calendario.
+> **Nota:** El módulo de invitaciones es robusto: si falla Google Calendar, los correos se envían de todas formas.
 
 ---
 
 ### 2. Módulo Empresa - `/apiv2/emp`
 
-Versión simplificada para la base de datos `sige_sam_empresa` (sin lógica de calendario).
+Versión simplificada para la base de datos `sige_sam_empresa` (sin integración con Google Calendar).
 
-#### `POST /apiv2/emp/invitaciones/{idCursoAbierto}`
-Crea un registro de invitación en la base de empresa.
-- **Cuerpo (`CrearInvitacionEmpresaRequest`)**:
-    ```json
-    { "id": 12345, "fecha": "2026-03-15" }
-    ```
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/apiv2/emp/salas` | Crea una sala para el módulo empresa |
+| `DELETE` | `/apiv2/emp/salas/{roomId}` | Elimina una sala del módulo empresa |
+| `GET` | `/apiv2/emp/salas/{idCursoAbierto}/status` | Diagnóstico del estado de sala para empresas |
+| `GET` | `/apiv2/emp/grabaciones/{idCursoAbierto}` | Recupera grabaciones del módulo empresa |
+| `POST` | `/apiv2/emp/invitaciones/{idCursoAbierto}` | Crea registro de invitación/sesión |
+| `PUT` | `/apiv2/emp/invitaciones/{id}` | Reprograma invitación existente |
+| `POST` | `/apiv2/emp/invitaciones/batch` | Ejecuta operaciones masivas (crear/editar/eliminar) |
+| `POST` | `/apiv2/emp/reprogramar-sesion` | Reprogramación general de sesiones |
+| `DELETE` | `/apiv2/emp/cursos/{idCursoAbierto}` | Elimina datos de un curso empresa |
 
-#### `PUT /apiv2/emp/invitaciones/{id}`
-Reprograma una invitación existente por su ID único.
-- **Cuerpo (`ReprogramarSesionRequest`)**:
-    ```json
-    { "fechaNuevaSesion": "2026-03-22" }
-    ```
+> **Nota:** Si ya existe una sala para el `idCursoAbierto`, la API retorna los datos existentes sin crear duplicados.
 
-#### `POST /apiv2/emp/invitaciones/batch`
-Ejecuta operaciones masivas (crear, editar, eliminar) en un solo lote.
-- **Cuerpo (`List<OperacionInvitacionEmpresaRequest>`)**:
-    ```json
-    [
-      { "accion": "crear", "id": 555, "fecha": "2026-04-01" },
-      { "accion": "editar", "id": 123, "fechaNueva": "2026-04-05" },
-      { "accion": "eliminar", "id": 999 }
-    ]
-    ```
+---
 
-#### `POST /apiv2/emp/salas`
-Crea una sala para el módulo empresa.
-- **Cuerpo (`CrearSalaRequest`)**: Similar al Módulo Central.
+### Ver Documentación Completa
 
-#### `GET /apiv2/emp/salas/{idCursoAbierto}/status`
-Diagnóstico del estado de sala para empresas.
-
-#### `GET /apiv2/emp/grabaciones/{idCursoAbierto}`
-Recupera grabaciones del módulo empresa.
-
-#### `POST /apiv2/emp/reprogramar-sesion`
-Reprogramación general de sesiones para empresas.
-
-#### `DELETE /apiv2/emp/cursos/{idCursoAbierto}`
-Elimina los datos de un curso de empresa.
+Para ejemplos detallados de requests, responses y códigos de error, consulta:
+- 📄 **[ENDPOINTS.md](ENDPOINTS.md)** - Documentación completa de todos los endpoints
 
 
 ## Historial de Cambios
+
+### 16-03-2026
+
+-   **Nuevos Endpoints de Invitaciones (Módulo Empresa)**: Se ampliaron las capacidades del módulo empresa con endpoints adicionales para gestión de sesiones:
+    -   `POST /apiv2/emp/invitaciones/{idCursoAbierto}`: Registra una nueva sesión en la tabla `sesionescursos`.
+    -   `PUT /apiv2/emp/invitaciones/{id}`: Modifica (reprograma) una invitación existente, marcando la anterior como suspendida.
+    -   `POST /apiv2/emp/invitaciones/batch`: Ejecuta operaciones masivas (crear, editar, eliminar) en un solo request.
+-   **Documentación Interactiva con Scalar**: Se reemplazó Swagger por Scalar como sistema de documentación interactiva, disponible en `/api-docs`. Ofrece una experiencia moderna con lista completa de endpoints, modelos de datos detallados y pruebas interactivas desde el navegador.
+-   **Mejora en Manejo de Errores**: Se refinó el manejo de excepciones en ambos controladores (`SalasController` y `SalasEmpController`) para distinguir entre errores de aplicación (`ApplicationException`), errores de validación (`InvalidOperationException`) y errores inesperados.
 
 ### 10-03-2026
 
